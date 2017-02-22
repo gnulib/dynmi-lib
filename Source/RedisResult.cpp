@@ -8,30 +8,17 @@
 #include "RedisResult.hpp"
 #include "hiredis/hiredis.h"
 #include <string.h>
+#include <cstddef>
 
 RedisResult RedisResult::noResult = RedisResult();
 
 RedisResult::RedisResult() {
-	type = RedisResultType::NONE;
-//	r = NULL;
+	type = NONE;
 	res = NULL;
 	size = 0;
 }
 
 RedisResult::RedisResult(const RedisResult& other) {
-//	type = other.type;
-////	r = NULL;
-//	res = NULL;
-//	size = other.size;
-//	if (other.type == RedisResultType::ARRAY) {
-//		RedisResult* elements = new RedisResult[other.size];
-//		for (int i=0; i< other.size; i++) {
-//			elements[i] = ((RedisResult*)other.res)[i];
-//		}
-//		res = elements;
-//	} else if (other.type == RedisResultType::STRING) {
-//		res = new char[other.size];
-//	}
 	*this=other;
 }
 
@@ -39,19 +26,19 @@ RedisResult& RedisResult::operator=(const RedisResult& other) {
 	if (this != &other) {
 		flush();
 		type = other.type;
-	//	r = NULL;
 		res = NULL;
 		size = other.size;
-		if (other.type == RedisResultType::ARRAY) {
+		if (other.type == ARRAY) {
 			RedisResult* elements = new RedisResult[other.size];
 			for (int i=0; i< other.size; i++) {
 				elements[i] = ((RedisResult*)other.res)[i];
 			}
 			res = elements;
-		} else if (other.type == RedisResultType::STRING || other.type == RedisResultType::ERROR) {
+		} else if (other.type == STRING || other.type == ERROR) {
 			res = new char[other.size+1];
 			strncpy((char *)res, (const char *)other.res, other.size);
-		} else if (other.type == RedisResultType::INTEGER) {
+			((char*)res)[size] = 0;
+		} else if (other.type == INTEGER) {
 			res = new int[1];
 			*((int*)res) = *(int*)other.res;
 		}
@@ -60,25 +47,20 @@ RedisResult& RedisResult::operator=(const RedisResult& other) {
 }
 
 RedisResult::~RedisResult() {
-//	if (r) {
-//	    freeReplyObject(r);
-//	}
 	flush();
 }
 
 void RedisResult::flush() {
-//	if (res == NULL) return;
-//	if (res != NULL) delete res;
-	type = RedisResultType::NONE;
+	type = NONE;
 	size = 0;
 	if (res != NULL) {
-		if (type == RedisResultType::ARRAY) {
+		if (type == ARRAY) {
 			//		for (; size > 0; ) {
 			delete[] (RedisResult*) res;
 			//		}
-		} else if (type == RedisResultType::STRING || type == RedisResultType::ERROR) {
+		} else if (type == STRING || type == ERROR) {
 			delete[] (char *) res;
-		} else if (type == RedisResultType::INTEGER) {
+		} else if (type == INTEGER) {
 			delete[] (int *) res;
 		}
 	}
@@ -86,17 +68,11 @@ void RedisResult::flush() {
 }
 
 void RedisResult::reuse() {
-//	if (r) {
-//	    freeReplyObject(r);
-//	}
-//	r = NULL;
-//	type = RedisResultType::NONE;
 	flush();
 }
 
 const char* const RedisResult::strResult() const {
-	if (type == RedisResultType::STRING) {
-//		return r->str;
+	if (type == STRING) {
 		return (const char *) res;
 	} else {
 		return NULL;
@@ -104,8 +80,7 @@ const char* const RedisResult::strResult() const {
 }
 
 int RedisResult::intResult() const {
-	if (type == RedisResultType::INTEGER) {
-//		return r->integer;
+	if (type == INTEGER) {
 		return *(int*)res;
 	} else {
 		return 0;
@@ -113,19 +88,19 @@ int RedisResult::intResult() const {
 }
 
 RedisResultType RedisResult::toMyType(int type) {
-	RedisResultType myType = RedisResultType::NONE;
+	RedisResultType myType = NONE;
 	switch(type) {
 	case REDIS_REPLY_STRING:
-		myType = RedisResultType::STRING;
+		myType = STRING;
 		break;
 	case REDIS_REPLY_INTEGER:
-		myType = RedisResultType::INTEGER;
+		myType = INTEGER;
 		break;
 	case REDIS_REPLY_ARRAY:
-		myType = RedisResultType::ARRAY;
+		myType = ARRAY;
 		break;
 	case REDIS_REPLY_ERROR:
-		myType = RedisResultType::ERROR;
+		myType = ERROR;
 		break;
 	default:
 		break;
@@ -134,70 +109,38 @@ RedisResultType RedisResult::toMyType(int type) {
 }
 
 int RedisResult::arraySize() const {
-	if (type == RedisResultType::ARRAY) {
-//		return r->elements;
+	if (type == ARRAY) {
 		return size;
 	} else {
 		return 0;
 	}
 }
 
-/**
- * how will the delete for redisResult work here???
- */
 const RedisResult& RedisResult::arrayResult(int idx) const {
 	RedisResult& item = RedisResult::noResult;
-//	if (type == RedisResultType::ARRAY && idx <= r->elements) {
-//		item.setRedisReply(r->element[idx]);
-//	}
-//	return item;
-	if (type == RedisResultType::ARRAY && idx < size) {
+	if (type == ARRAY && idx < size) {
 		item = ((RedisResult*) res)[idx];
 	}
 	return item;
 }
 
-//RedisResultType RedisResult::arrayResultType(int idx) const {
-//	RedisResultType idxType = RedisResultType::ERROR;
-////	if (type == RedisResultType::ARRAY && idx <= r->elements) {
-////		idxType = toMyType(r->element[idx]->type);
-////	}
-//	if (type == RedisResultType::ARRAY && idx <= size) {
-//		idxType = ((RedisResult*)res)->type;
-//	}
-//	return idxType;
-//}
-
-//const char* const RedisResult::arrayStrResult(int idx) const {
-//	if (arrayResultType(idx) == RedisResultType::STRING) {
-//		return r->element[idx]->str;
-//	}
-//	return NULL;
-//}
-
-//int RedisResult::arrayIntResult(int idx) const {
-//	if (arrayResultType(idx) == RedisResultType::INTEGER) {
-//		return r->element[idx]->integer;
-//	}
-//	return 0;
-//}
 
 void RedisResult::fromRedisReply(redisReply* r) {
 	void* res = NULL;
 	type = RedisResult::toMyType(r->type);
 	switch(type) {
-	case RedisResultType::STRING:
+	case STRING:
 		size = r->len;
 		res = new char[size+1];
 		strncpy((char *)res, r->str, size);
-		((char*)res)[size] = NULL;
+		((char*)res)[size] = 0;
 		break;
-	case RedisResultType::INTEGER:
+	case INTEGER:
 		size = 0;
 		res = new int[1];
 		*(int*)res = (int)(r->integer);
 		break;
-	case RedisResultType::ARRAY:
+	case ARRAY:
 	{
 		size = r->elements;
 		RedisResult* elements = new RedisResult[size];
@@ -207,11 +150,11 @@ void RedisResult::fromRedisReply(redisReply* r) {
 		res = elements;
 	}
 		break;
-	case RedisResultType::ERROR:
+	case ERROR:
 		size = r->len;
 		res = new char[size+1];
 		strncpy((char *)res, r->str, size);
-		((char*)res)[size] = NULL;
+		((char*)res)[size] = 0;
 		break;
 	default:
 		break;
@@ -220,7 +163,7 @@ void RedisResult::fromRedisReply(redisReply* r) {
 }
 
 const char* RedisResult::errMsg() const {
-	if (type == RedisResultType::ERROR) {
+	if (type == ERROR) {
 		return (const char *) res;
 	} else {
 		return NULL;
@@ -228,7 +171,7 @@ const char* RedisResult::errMsg() const {
 }
 void RedisResult::setRedisReply(redisReply * r, bool internal) {
 	if (r == NULL) {
-		type = RedisResultType::ERROR;
+		type = ERROR;
 	} else {
 		fromRedisReply(r);
 	}

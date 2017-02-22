@@ -10,8 +10,8 @@ LIB_REDIS = libredis.a
 SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 CPPS := $(patsubst $(SRC_DIR)/%.cpp, %.cpp, $(SRCS))
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
-CFLAGS := -g -Wall -I$(ROOT_DIR)/$(INCLUDE_DIR) -Wc++11-extensions
-LFLAGS := -Wall
+CFLAGS := -g -Wall -I$(ROOT_DIR)/$(INCLUDE_DIR)
+LFLAGS := -lstdc++
 
 all: $(LIB_REDIS) test
 

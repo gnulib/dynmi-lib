@@ -5,6 +5,7 @@
  *      Author: bhadoria
  */
 
+#include <cstddef>
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
 #include "hiredis/hiredis.h"

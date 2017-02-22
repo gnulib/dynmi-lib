@@ -17,18 +17,18 @@ using namespace std;
 
 void printResult(const RedisResult& res) {
 	switch(res.resultType()) {
-	case RedisResultType::STRING:
+	case STRING:
 		cout << res.strResult() << endl;
 		break;
-	case RedisResultType::INTEGER:
+	case INTEGER:
 		cout << res.intResult() << endl;
 		break;
-	case RedisResultType::ARRAY:
+	case ARRAY:
 		for (int i=0 ; i < res.arraySize() ; i++) {
 			printResult((const RedisResult&) res.arrayResult(i));
 		}
 		break;
-	case RedisResultType::ERROR:
+	case ERROR:
 		cout << res.errMsg() << endl;
 		break;
 	default:
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 	}
 	cout << "connecting to \"" << argv[1] << ":" << argv[2] << "\"" << endl;
 
-	RedisConnection conn(argv[1], stoi(argv[2]));
+	RedisConnection conn(argv[1], atoi(argv[2]));
 	RedisResult res = RedisResult();
 	bool done=false;
 	while (!done) {

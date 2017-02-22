@@ -8,6 +8,8 @@
 #ifndef REDISRESULT_HPP_
 #define REDISRESULT_HPP_
 
+struct redisReply;
+
 enum RedisResultType {
 	INTEGER,
 	STRING,
@@ -15,7 +17,6 @@ enum RedisResultType {
 	NONE,
 	ERROR
 };
-struct redisReply;
 
 class RedisResult {
 public:
@@ -23,26 +24,22 @@ public:
 	virtual ~RedisResult();
 	RedisResult(const RedisResult&);
 public:
-	RedisResultType resultType() const {return type;}
+	enum RedisResultType resultType() const {return type;}
 	void reuse();
 	const char* const strResult() const;
 	int intResult() const;
 	int arraySize() const;
 	const RedisResult& arrayResult(int) const;
-//	RedisResultType arrayResultType(int) const;
-//	const char* const arrayStrResult(int) const;
-//	int arrayIntResult(int) const;
 	void setRedisReply(redisReply *);
 	const char* errMsg() const;
 	RedisResult& operator=(const RedisResult&);
 private:
 	void flush();
-	static RedisResultType toMyType(int);
+	static enum RedisResultType toMyType(int);
 	void fromRedisReply(redisReply *);
 	void setRedisReply(redisReply *, bool);
 private:
-	RedisResultType type;
-//	redisReply *r;
+	enum RedisResultType type;
 	void* res;
 	int size;
 	static RedisResult noResult;
