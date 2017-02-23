@@ -18,10 +18,10 @@ using namespace std;
 void printResult(const RedisResult& res) {
 	switch(res.resultType()) {
 	case STRING:
-		cout << res.strResult() << endl;
+		cout << "STRING: " << res.strResult() << endl;
 		break;
 	case INTEGER:
-		cout << res.intResult() << endl;
+		cout << "INTEGER: " << res.intResult() << endl;
 		break;
 	case ARRAY:
 		for (int i=0 ; i < res.arraySize() ; i++) {
@@ -29,10 +29,10 @@ void printResult(const RedisResult& res) {
 		}
 		break;
 	case ERROR:
-		cout << res.errMsg() << endl;
+		cout << "ERROR: " << res.errMsg() << endl;
 		break;
 	default:
-		cout << NULL << endl;
+		cout << "<NULL>" << endl;
 	}
 
 }
@@ -51,11 +51,19 @@ int main(int argc, char **argv) {
 	}
 	RedisResult res = RedisResult();
 	bool done=false;
+	bool isSubscribed = false;
 	while (!done) {
-		cout << "CMD> ";
 		char message[1024];
-		std::cin.getline(message,1023);
-		if (conn.cmd(message, res) != 0) {
+		if (isSubscribed) {
+			message[0] = 0;
+		} else {
+			cout << "CMD> ";
+			std::cin.getline(message,1023);
+			if (strstr(message, "subscribe") == message || strstr(message, "SUBSCRIBE") == message) {
+				isSubscribed = true;
+			}
+		}
+		if (conn.cmd(message, res) != 0 || !conn.isConnected()) {
 			done = true;
 		} else {
 			printResult(res);
