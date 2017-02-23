@@ -30,7 +30,8 @@ $(OBJS):
 $(TESTS): $(LIB_REDIS)
 	@echo 'Building test: $@'
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ $(TEST_DIR)/$@.cpp $(BUILD_DIR)/$(LIB_REDIS) $(LIBS)
-	$(BUILD_DIR)/$@
+	cd $(BUILD_DIR) && ./$@
+	rm -f $(BUILD_DIR)/core.*
 
 $(HIREDIS_LIB):
 	@echo 'Building hiredis library'

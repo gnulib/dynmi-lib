@@ -66,7 +66,8 @@ TEST(RedisResultTest, NoMemLeak) {
 	// because they are run as a child thread, and
 	// pointer needs to be created and deleted within
 	// the child thread to catch this condition
-	ASSERT_DEATH({
+//	ASSERT_DEATH({
+	ASSERT_EXIT({
 		RedisResult res = RedisResult();
 		redisReply* r = new redisReply();
 		r->type = REDIS_REPLY_NIL;
@@ -75,7 +76,8 @@ TEST(RedisResultTest, NoMemLeak) {
 		// death, since r should already
 		// have been freed up by our test class
 		delete r;
-	}, "");
+	}, ::testing::KilledBySignal(6), "");
+//	}, "");
 }
 
 TEST(RedisResultTest, InitFromString) {
