@@ -15,7 +15,7 @@ TESTS := $(patsubst $(TEST_DIR)/%.cpp, %, $(wildcard $(TEST_DIR)/*Test.cpp))
 CPPS := $(patsubst $(SRC_DIR)/%.cpp, %.cpp, $(SRCS))
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 CFLAGS := -g -Wall -I$(ROOT_DIR)/$(INCLUDE_DIR) -I$(GTEST_DIR)/include -I$(HIREDIS_DIR)/..
-LFLAGS := -lstdc++
+LDFLAGS := -lstdc++ -lpthread
 
 all: $(LIB_REDIS) $(TESTS)
 

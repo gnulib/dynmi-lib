@@ -75,7 +75,7 @@ TEST(RedisResultTest, NoMemLeak) {
 		// death, since r should already
 		// have been freed up by our test class
 		delete r;
-	}, ".* pointer being freed was not allocated");
+	}, "");
 }
 
 TEST(RedisResultTest, InitFromString) {
