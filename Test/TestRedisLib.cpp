@@ -45,6 +45,10 @@ int main(int argc, char **argv) {
 	cout << "connecting to \"" << argv[1] << ":" << argv[2] << "\"" << endl;
 
 	RedisConnection conn(argv[1], atoi(argv[2]));
+	if (!conn.isConnected()) {
+		cout << "failed to connect." << endl;
+		return -1;
+	}
 	RedisResult res = RedisResult();
 	bool done=false;
 	while (!done) {
