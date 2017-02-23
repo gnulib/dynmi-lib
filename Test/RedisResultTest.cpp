@@ -61,6 +61,23 @@ TEST(RedisResultTest, InitFromError) {
 	ASSERT_EQ(res.resultType(), ERROR);
 }
 
+TEST(RedisResultTest, NoMemLeak) {
+	// need to move the whole test under DEATH test
+	// because they are run as a child thread, and
+	// pointer needs to be created and deleted within
+	// the child thread to catch this condition
+	ASSERT_DEATH({
+		RedisResult res = RedisResult();
+		redisReply* r = new redisReply();
+		r->type = REDIS_REPLY_NIL;
+		res.setRedisReply(r);
+		// we are expecting below to cause
+		// death, since r should already
+		// have been freed up by our test class
+		delete r;
+	}, ".* pointer being freed was not allocated");
+}
+
 TEST(RedisResultTest, InitFromString) {
 	RedisResult res = RedisResult();
 	res.setRedisReply(getStringReply(TEST_STRING_VALUE));
