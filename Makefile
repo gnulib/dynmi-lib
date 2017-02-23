@@ -10,7 +10,8 @@ HIREDIS_DIR := hiredis
 HIREDIS_LIB := libhiredis.a
 LIB_REDIS = libredis.a
 SRCS := $(wildcard $(SRC_DIR)/*.cpp)
-LIBS := $(HIREDIS_DIR)/$(HIREDIS_LIB) $(GTEST_DIR)/make/$(GTEST_LIB)
+# LIBS := $(HIREDIS_DIR)/$(HIREDIS_LIB) $(GTEST_DIR)/make/$(GTEST_LIB)
+LIBS := $(BUILD_DIR)/$(HIREDIS_LIB) $(BUILD_DIR)/$(GTEST_LIB)
 TESTS := $(patsubst $(TEST_DIR)/%.cpp, %, $(wildcard $(TEST_DIR)/*Test.cpp))
 CPPS := $(patsubst $(SRC_DIR)/%.cpp, %.cpp, $(SRCS))
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
@@ -28,18 +29,23 @@ $(OBJS):
 	$(CC) -c $(CFLAGS) $(LDFLAGS) -o $@ $(patsubst $(BUILD_DIR)/%.o, $(SRC_DIR)/%.cpp, $@)
 
 $(TESTS): $(LIB_REDIS)
+	mkdir -p $(BUILD_DIR)
 	@echo 'Building test: $@'
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ $(TEST_DIR)/$@.cpp $(BUILD_DIR)/$(LIB_REDIS) $(LIBS)
 	cd $(BUILD_DIR) && ./$@
 	rm -f $(BUILD_DIR)/core.*
 
 $(HIREDIS_LIB):
+	mkdir -p $(BUILD_DIR)
 	@echo 'Building hiredis library'
 	cd $(HIREDIS_DIR) && $(MAKE)
+	cp -f $(HIREDIS_DIR)/$(HIREDIS_LIB) $(BUILD_DIR)
 
 $(GTEST_LIB): 
+	mkdir -p $(BUILD_DIR)
 	@echo 'Building googletest'
 	cd $(GTEST_DIR)/make && $(MAKE)
+	cp -f $(GTEST_DIR)/make/$(GTEST_LIB) $(BUILD_DIR)
 
 hiredis:
 	@echo 'need to add rules to build hiredis lib'

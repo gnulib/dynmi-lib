@@ -31,6 +31,10 @@
 # Build artifacts
 Build/
 
+# Submodules
+gtest/
+hiredis/
+
 # Eclipse files
 .cproject
 .project
