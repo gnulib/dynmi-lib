@@ -8,37 +8,7 @@
 #include "RedisResult.hpp"
 #include "hiredis/hiredis.h"
 #include "gtest/gtest.h"
-
-const char * TEST_STRING_VALUE = "test response";
-const char * TEST_STRING_ERR = "this is error message";
-const int TEST_INTEGER_VALUE = 102938475;
-
-redisReply* getStringReply(const char * value) {
-	redisReply* r = new redisReply;
-	r->type = REDIS_REPLY_STRING;
-	r->str = new char[strlen(value)];
-	r->len = strlen(value);
-	strcpy(r->str, value);
-	return r;
-}
-
-redisReply* getIntReply(const int value) {
-	redisReply* r = new redisReply;
-	r->type = REDIS_REPLY_INTEGER;
-	r->integer = value;
-	return r;
-}
-
-redisReply* getArrayReply(int size, redisReply** values) {
-	redisReply* r = new redisReply;
-	r->type = REDIS_REPLY_ARRAY;
-	r->elements = size;
-	r->element = new redisReply*[size];
-	for (int i=0; i< size; i++) {
-		r->element[i] = values[i];
-	}
-	return r;
-}
+#include "RedisReplyFixtures.hpp"
 
 TEST(RedisResultTest, DefaultValues) {
 	RedisResult res = RedisResult();
@@ -55,13 +25,14 @@ TEST(RedisResultTest, InitFromNull) {
 }
 
 TEST(RedisResultTest, InitFromError) {
-	RedisResult res = RedisResult();
-	redisReply* r = new redisReply();
-	r->type = REDIS_REPLY_ERROR;
-	r->str = new char[strlen(TEST_STRING_ERR)];
-	r->len = strlen(TEST_STRING_ERR);
-	strcpy(r->str, TEST_STRING_ERR);
-	res.setRedisReply(r);
+//	RedisResult res = RedisResult();
+//	redisReply* r = new redisReply();
+//	r->type = REDIS_REPLY_ERROR;
+//	r->str = new char[strlen(TEST_STRING_ERR)];
+//	r->len = strlen(TEST_STRING_ERR);
+//	strcpy(r->str, TEST_STRING_ERR);
+//	res.setRedisReply(r);
+	RedisResult res = getErrorResult();
 	ASSERT_EQ(res.resultType(), ERROR);
 	ASSERT_STREQ(res.strResult(), NULL);
 }
@@ -71,7 +42,6 @@ TEST(RedisResultTest, NoMemLeak) {
 	// because they are run as a child thread, and
 	// pointer needs to be created and deleted within
 	// the child thread to catch this condition
-//	ASSERT_DEATH({
 	ASSERT_EXIT({
 		RedisResult res = RedisResult();
 		redisReply* r = new redisReply();
@@ -82,7 +52,6 @@ TEST(RedisResultTest, NoMemLeak) {
 		// have been freed up by our test class
 		delete r;
 	}, ::testing::KilledBySignal(6), "");
-//	}, "");
 }
 
 TEST(RedisResultTest, InitFromString) {
@@ -118,13 +87,14 @@ TEST(RedisResultTest, ReuseAfterInteger) {
 }
 
 TEST(RedisResultTest, ReuseAfterError) {
-	RedisResult res = RedisResult();
-	redisReply* r = new redisReply();
-	r->type = REDIS_REPLY_ERROR;
-	r->str = new char[strlen(TEST_STRING_ERR)];
-	r->len = strlen(TEST_STRING_ERR);
-	strcpy(r->str, TEST_STRING_ERR);
-	res.setRedisReply(r);
+//	RedisResult res = RedisResult();
+//	redisReply* r = new redisReply();
+//	r->type = REDIS_REPLY_ERROR;
+//	r->str = new char[strlen(TEST_STRING_ERR)];
+//	r->len = strlen(TEST_STRING_ERR);
+//	strcpy(r->str, TEST_STRING_ERR);
+//	res.setRedisReply(r);
+	RedisResult res = getErrorResult();
 	res.reuse();
 	ASSERT_EQ(res.errMsg(), (const char *)NULL);
 	ASSERT_EQ(res.resultType(), NONE);
