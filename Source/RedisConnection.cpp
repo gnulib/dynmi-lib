@@ -28,6 +28,9 @@ RedisConnection::~RedisConnection() {
 		delete myCtx;
 }
 
+bool RedisConnection::isConnected() const {
+	return myCtx != NULL;
+}
 int RedisConnection::cmd(const char * cmd, RedisResult& res) {
 	// flush out any previous result from place holder
 	res.reuse();

@@ -27,6 +27,9 @@ public:
 	// a generic method to execute redis commands
 	int cmd(const char *, RedisResult&);
 
+	// get connection status
+	bool isConnected() const;
+
 protected:
 	// my redis context pointer
 	redisContext* myCtx;

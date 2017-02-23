@@ -10,6 +10,7 @@
 #include "gtest/gtest.h"
 
 const char * TEST_STRING_VALUE = "test response";
+const char * TEST_STRING_ERR = "this is error message";
 const int TEST_INTEGER_VALUE = 102938475;
 
 redisReply* getStringReply(const char * value) {
@@ -57,8 +58,12 @@ TEST(RedisResultTest, InitFromError) {
 	RedisResult res = RedisResult();
 	redisReply* r = new redisReply();
 	r->type = REDIS_REPLY_ERROR;
+	r->str = new char[strlen(TEST_STRING_ERR)];
+	r->len = strlen(TEST_STRING_ERR);
+	strcpy(r->str, TEST_STRING_ERR);
 	res.setRedisReply(r);
 	ASSERT_EQ(res.resultType(), ERROR);
+	ASSERT_STREQ(res.strResult(), NULL);
 }
 
 TEST(RedisResultTest, NoMemLeak) {
@@ -96,6 +101,47 @@ TEST(RedisResultTest, InitFromInteger) {
 	ASSERT_EQ(res.intResult(), TEST_INTEGER_VALUE);
 }
 
+TEST(RedisResultTest, ReuseAfterString) {
+	RedisResult res = RedisResult();
+	res.setRedisReply(getStringReply(TEST_STRING_VALUE));
+	res.reuse();
+	ASSERT_EQ(res.strResult(), (const char *)NULL);
+	ASSERT_EQ(res.resultType(), NONE);
+}
+
+TEST(RedisResultTest, ReuseAfterInteger) {
+	RedisResult res = RedisResult();
+	res.setRedisReply(getIntReply(TEST_INTEGER_VALUE));
+	res.reuse();
+	ASSERT_NE(res.intResult(), TEST_INTEGER_VALUE);
+	ASSERT_EQ(res.resultType(), NONE);
+}
+
+TEST(RedisResultTest, ReuseAfterError) {
+	RedisResult res = RedisResult();
+	redisReply* r = new redisReply();
+	r->type = REDIS_REPLY_ERROR;
+	r->str = new char[strlen(TEST_STRING_ERR)];
+	r->len = strlen(TEST_STRING_ERR);
+	strcpy(r->str, TEST_STRING_ERR);
+	res.setRedisReply(r);
+	res.reuse();
+	ASSERT_EQ(res.errMsg(), (const char *)NULL);
+	ASSERT_EQ(res.resultType(), NONE);
+}
+
+TEST(RedisResultTest, ReuseAfterArray) {
+	redisReply** values = new redisReply*[2];
+	values[0] = getStringReply(TEST_STRING_VALUE);
+	values[1] = getIntReply(TEST_INTEGER_VALUE);
+	RedisResult res = RedisResult();
+	res.setRedisReply(getArrayReply(2, values));
+	res.reuse();
+	ASSERT_EQ(res.resultType(), NONE);
+	ASSERT_EQ(res.arraySize(), 0);
+	ASSERT_EQ(res.arrayResult(0).resultType(), NONE);
+}
+
 TEST(RedisResultTest, InitFromArray) {
 	redisReply** values = new redisReply*[2];
 	values[0] = getStringReply(TEST_STRING_VALUE);
@@ -103,6 +149,7 @@ TEST(RedisResultTest, InitFromArray) {
 	RedisResult res = RedisResult();
 	res.setRedisReply(getArrayReply(2, values));
 	ASSERT_EQ(res.resultType(), ARRAY);
+	ASSERT_EQ(res.arraySize(), 2);
 	ASSERT_EQ(res.arrayResult(0).resultType(), STRING);
 	ASSERT_EQ(res.arrayResult(1).resultType(), INTEGER);
 }
