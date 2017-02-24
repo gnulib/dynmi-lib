@@ -18,9 +18,8 @@ TEST(RedisConnectionTest, ReportsConnectionError) {
 TEST(RedisConnectionTest, ReportsCommandError) {
     // create a connection instance with invalid host
     RedisConnection conn("not valid", 1999);
-    RedisResult res = RedisResult();
-    ASSERT_EQ(conn.cmd("keys *", res), -1);
-    ASSERT_EQ(res.resultType(), NONE);
+    RedisResult res = conn.cmd("keys *");
+    ASSERT_EQ(res.resultType(), ERROR);
 }
 
 int main(int argc, char **argv) {

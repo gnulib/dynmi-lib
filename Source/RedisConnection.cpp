@@ -31,16 +31,18 @@ RedisConnection::~RedisConnection() {
 bool RedisConnection::isConnected() const {
 	return myCtx != NULL;
 }
-int RedisConnection::cmd(const char * cmd, RedisResult& res) {
-	// flush out any previous result from place holder
-	res.reuse();
+
+RedisResult RedisConnection::cmd(const char * cmd) {
+	RedisResult res = RedisResult();
 	if (!myCtx) {
 		// we don't have a connection, so nothing to do
-		return -1;
+		res.type = ERROR;
+	} else {
+		redisReply *r = (redisReply*) redisCommand(myCtx, cmd);
+		if (r == NULL)
+			res.type = ERROR;
+		else
+			res.setRedisReply(r);
 	}
-	redisReply *r = (redisReply*) redisCommand(myCtx, cmd);
-	if (r == NULL)
-		return -1;
-	res.setRedisReply(r);
-	return 0;
+	return res;
 }

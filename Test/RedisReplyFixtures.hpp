@@ -56,4 +56,10 @@ RedisResult getErrorResult() {
 	return res;
 }
 
+RedisResult getIntegerResult(const int value) {
+	RedisResult res = RedisResult();
+	res.setRedisReply(getIntReply(value));
+	return res;
+}
+
 #endif /* TEST_REDISREPLYFIXTURES_HPP_ */

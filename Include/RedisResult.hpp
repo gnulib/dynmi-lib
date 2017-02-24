@@ -19,6 +19,7 @@ enum RedisResultType {
 };
 
 class RedisResult {
+	friend class RedisConnection;
 public:
 	RedisResult();
 	virtual ~RedisResult();

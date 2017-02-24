@@ -25,7 +25,7 @@ protected:
 
 public:
 	// a generic method to execute redis commands
-	virtual int cmd(const char *, RedisResult&);
+	virtual RedisResult cmd(const char *);
 
 	// get connection status
 	virtual bool isConnected() const;
