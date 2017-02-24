@@ -36,11 +36,11 @@ RedisResult RedisConnection::cmd(const char * cmd) {
 	RedisResult res = RedisResult();
 	if (!myCtx) {
 		// we don't have a connection, so nothing to do
-		res.type = ERROR;
+		res.type = FAILED;
 	} else {
 		redisReply *r = (redisReply*) redisCommand(myCtx, cmd);
 		if (r == NULL)
-			res.type = ERROR;
+			res.type = FAILED;
 		else
 			res.setRedisReply(r);
 	}

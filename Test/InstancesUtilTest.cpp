@@ -24,7 +24,7 @@ public:
 	MOCK_CONST_METHOD0(isConnected, bool());
 };
 
-TEST(InstancesUtilTest, ReserveInstanceIdNonIntegerResultType) {
+TEST(InstancesUtilTest, getNewInstanceIdNonIntegerResultType) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
@@ -38,10 +38,10 @@ TEST(InstancesUtilTest, ReserveInstanceIdNonIntegerResultType) {
 
 	// verify that InstanceUtil returns back instance ID as -1
 	// when redis operation result is of type error
-	ASSERT_EQ(InstancesUtil::reserveInstanceId(conn, TEST_APP_ID), -1);
+	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID), -1);
 }
 
-TEST(InstancesUtilTest, ReserveInstanceIdCommandFailure) {
+TEST(InstancesUtilTest, getNewInstanceIdCommandFailure) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
@@ -55,16 +55,16 @@ TEST(InstancesUtilTest, ReserveInstanceIdCommandFailure) {
 
 	// verify that InstanceUtil returns back instance ID as -1
 	// when command execution fails
-	ASSERT_EQ(InstancesUtil::reserveInstanceId(conn, TEST_APP_ID), -1);
+	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID), -1);
 }
 
-TEST(InstancesUtilTest, ReserveInstanceIdCommandSchema) {
+TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
 	// setup mock to expect command with following schema
-	// INCR <NAMESPACE PREFIX>:<App ID>:CURR_INSTANCE
-	std::string command = std::string("INCR ") + INSTANCES_UTIL_NAMESPACE + ":" + TEST_APP_ID + ":CURR_INSTANCE";
+	// INCR <NAMESPACE PREFIX>:<App ID>:INSTANCES
+	std::string command = std::string("INCR ") + INSTANCES_UTIL_NAMESPACE + ":" + TEST_APP_ID + ":INSTANCES";
 	EXPECT_CALL(conn, cmd(StrEq(command.c_str())))
 		// one time
 		.Times(1)
@@ -72,10 +72,10 @@ TEST(InstancesUtilTest, ReserveInstanceIdCommandSchema) {
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// invoke the utility with request to reserver instance ID
-	InstancesUtil::reserveInstanceId(conn, TEST_APP_ID);
+	InstancesUtil::getNewInstanceId(conn, TEST_APP_ID);
 }
 
-TEST(InstancesUtilTest, ReserveInstanceIdSuccess) {
+TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
@@ -92,7 +92,7 @@ TEST(InstancesUtilTest, ReserveInstanceIdSuccess) {
 
 	// verify that InstanceUtil returns back instance ID same as
 	// what we initialized our redis response above
-	ASSERT_EQ(InstancesUtil::reserveInstanceId(conn, TEST_APP_ID), 99);
+	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID), 99);
 }
 
 int main(int argc, char **argv) {

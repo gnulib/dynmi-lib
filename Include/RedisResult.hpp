@@ -15,7 +15,8 @@ enum RedisResultType {
 	STRING,
 	ARRAY,
 	NONE,
-	ERROR
+	ERROR,
+	FAILED
 };
 
 class RedisResult {

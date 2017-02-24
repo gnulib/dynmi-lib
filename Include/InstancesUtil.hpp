@@ -22,7 +22,7 @@ private:
 	InstancesUtil();
 	~InstancesUtil();
 public:
-	static int reserveInstanceId(RedisConnection& conn, const char* appId);
+	static int getNewInstanceId(RedisConnection& conn, const char* appId);
 
 };
 

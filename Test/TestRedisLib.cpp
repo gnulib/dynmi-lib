@@ -12,6 +12,7 @@
 
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
+#include "InstancesUtil.hpp"
 
 using namespace std;
 
@@ -45,11 +46,14 @@ int main(int argc, char **argv) {
 	cout << "connecting to \"" << argv[1] << ":" << argv[2] << "\"" << endl;
 
 	RedisConnection conn(argv[1], atoi(argv[2]));
+	int id;
 	if (!conn.isConnected()) {
 		cout << "failed to connect." << endl;
 		return -1;
+	} else {
+		id = InstancesUtil::getNewInstanceId(conn, "Test-App");
+		cout << "my instance ID: " << id << endl;
 	}
-	RedisResult res = RedisResult();
 	bool done=false;
 	bool isSubscribed = false;
 	while (!done) {
@@ -57,13 +61,14 @@ int main(int argc, char **argv) {
 		if (isSubscribed) {
 			message[0] = 0;
 		} else {
-			cout << "CMD> ";
+			cout << "[ID:" << id << "] CMD> ";
 			std::cin.getline(message,1023);
 			if (strstr(message, "subscribe") == message || strstr(message, "SUBSCRIBE") == message) {
 				isSubscribed = true;
 			}
 		}
-		if (conn.cmd(message, res) != 0 || !conn.isConnected()) {
+		RedisResult res = conn.cmd(message);
+		if (res.resultType() == FAILED || !conn.isConnected()) {
 			done = true;
 		} else {
 			printResult(res);
