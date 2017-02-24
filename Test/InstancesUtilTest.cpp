@@ -195,12 +195,17 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep1Lock) {
 
 	// first try to acquire lock
 	std::string command1 = std::string("SETNX ") + key;
+	// then set lock expiry when we lock successfully
+	std::string command2 = std::string("EXPIRE ") + key + " " + std::to_string(ttl+1);
 	{
 		InSequence dummy;
 		EXPECT_CALL(conn, isConnected())
 		.Times(1)
 		.WillOnce(Return(true));
 		EXPECT_CALL(conn, cmd(StartsWith(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(1)));
+		EXPECT_CALL(conn, cmd(StrEq(command2.c_str())))
 		.Times(1)
 		.WillOnce(Return(getIntegerResult(1)));
 	}
@@ -298,6 +303,8 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
 	std::string command2 = std::string("GET ") + key;
 	// then retry getting the lock
 	std::string command3 = std::string("GETSET ") + key;
+	// set lock expiry after we won it
+	std::string command4 = std::string("EXPIRE ") + key + " " + std::to_string(ttl+1);
 	{
 		InSequence dummy;
 		EXPECT_CALL(conn, isConnected())
@@ -317,7 +324,11 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
 		.Times(1)
 		// mock return value to send same old expiry
 		.WillOnce(Return(getStringResult(std::to_string(now - 1).c_str())));
-	}
+
+		EXPECT_CALL(conn, cmd(StrEq(command4.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(1)));
+}
 	// we expect a return value 0/success
 	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
 }

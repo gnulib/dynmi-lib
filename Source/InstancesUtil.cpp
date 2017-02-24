@@ -152,6 +152,9 @@ int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const c
 
 	// STEP 2
 	if (res.intResult() == 1) {
+		// set an expiry to this lock
+		command = std::string("EXPIRE ") + key + " " + std::to_string(ttl + 1);
+		conn.cmd(command.c_str());
 		return 0;
 	}
 
@@ -187,6 +190,9 @@ int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const c
 	}
 
 	// STEP 3.c.4
+	// set an expiry to this lock
+	command = std::string("EXPIRE ") + key + " " + std::to_string(ttl + 1);
+	conn.cmd(command.c_str());
 	return 0;
 }
 
@@ -200,7 +206,7 @@ int InstancesUtil::releaseFastLock(RedisConnection& conn, const char* appId, con
 
 	std::string command = std::string("DEL ") + key;
 	RedisResult res = conn.cmd(command.c_str());
-	if(res.resultType() != ERROR || res.resultType() == FAILED) {
+	if(res.resultType() == ERROR || res.resultType() == FAILED) {
 		return -1;
 	}
 

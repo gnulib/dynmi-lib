@@ -69,6 +69,24 @@ int main(int argc, char **argv) {
 			} else if (strstr(message, "quit") == message || strstr(message, "QUIT") == message) {
 				done = true;
 				continue;
+			} else if (strstr(message, "lock") == message || strstr(message, "LOCK") == message) {
+				int res = InstancesUtil::getFastLock(conn, "Test-App", "test-lock", 60);
+				if (res == 0) {
+					cout << "Successful in getting lock!" << endl;
+				} else if (res > 0) {
+					cout << "Lock busy for next " << res << " seconds." << endl;
+				} else {
+					cout << "Failure in lock operation!!!" << endl;
+				}
+				continue;
+			} else if (strstr(message, "unlock") == message || strstr(message, "UNLOCK") == message) {
+				int res = InstancesUtil::releaseFastLock(conn, "Test-App", "test-lock");
+				if (res == 0) {
+					cout << "Successful in releasing the lock!" << endl;
+				} else {
+					cout << "Failure in lock operation!!!" << endl;
+				}
+				continue;
 			}
 		}
 		RedisResult res = conn.cmd(message);
