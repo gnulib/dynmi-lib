@@ -10,6 +10,7 @@
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
 #include <string>
+#include <ctime>
 
 /**
  * get a new ID for a newly deploying instance of the application
@@ -111,6 +112,95 @@ int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
 	std::string command3 = std::string("EXPIRE ") + key3 + " 10";
 	res = conn.cmd(command3.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
+ * get a fast lock on system as following:
+ *	1.	execute "SETNX <mutex key> <current Unix timestamp + mutex timeout + 1>"
+ *		on the key for the mutex name
+ *	2.	if return value is "1", then proceed with operation, and then delete the key
+ *	3.	if return value is "0", then
+ *		a.	get mutex key value (timestamp of expiry)
+ *		b.	if it is more than current time, then wait (mutex in use)
+ *		c.	otherwise try following:
+ *			1)	execute "GETSET <mutex key> <current Unix timestamp + mutex timeout + 1>"
+ *			2)	check the return value to see if this is same as old expired value
+ *			3)	if return value is not same as original expired then some other instance
+ *				got the mutex, and this instance needs to wait (or abort)
+ *			4)	otherwise (if return value is same as expired), then instance successfully
+ *				acquired the mutex, proceed with operation
+ */
+int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const char* lockName, int ttl) {
+	if (!conn.isConnected()) {
+		return -1;
+	}
+
+	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + appId + ":LOCKS:" + lockName;
+	std::time_t now = std::time(0);
+
+	// STEP 1
+	std::string command = std::string("SETNX ") + key + " " + std::to_string(now + ttl + 1);
+	RedisResult res = conn.cmd(command.c_str());
+	if(res.resultType() == ERROR || res.resultType() == FAILED) {
+		return -1;
+	}
+
+	// STEP 2
+	if (res.intResult() == 1) {
+		return 0;
+	}
+
+	// STEP 3.a
+	command = std::string("GET ") + key;
+	res = conn.cmd(command.c_str());
+	if(res.resultType() != STRING) {
+		return -1;
+	}
+
+	// STEP 3.b
+	long expiry = std::stol(res.strResult());
+	if(expiry > now) {
+		return expiry - now;
+	}
+
+	// STEP 3.c.1
+	command = std::string("GETSET ") + key + " " + std::to_string(now + ttl + 1);
+	res = conn.cmd(command.c_str());
+	if(res.resultType() != STRING) {
+		return -1;
+	}
+
+	// STEP 3.c.2
+	long newExpiry = std::stol(res.strResult());
+	if(expiry != newExpiry) {
+		// revert back lock's expire value to newExpiry
+		command = std::string("SET ") + key + " " + res.strResult();
+		conn.cmd(command.c_str());
+
+		// STEP 3.c.3
+		return newExpiry - now;
+	}
+
+	// STEP 3.c.4
+	return 0;
+}
+
+int InstancesUtil::releaseFastLock(RedisConnection& conn, const char* appId, const char* lockName) {
+	if (!conn.isConnected()) {
+		return -1;
+	}
+
+	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + appId + ":LOCKS:" + lockName;
+
+	std::string command = std::string("DEL ") + key;
+	RedisResult res = conn.cmd(command.c_str());
+	if(res.resultType() != ERROR || res.resultType() == FAILED) {
 		return -1;
 	}
 

@@ -12,6 +12,7 @@
 #include "RedisResult.hpp"
 #include "RedisReplyFixtures.hpp"
 #include <string>
+#include <ctime>
 
 using namespace ::testing;
 
@@ -19,6 +20,7 @@ static const std::string TEST_APP_ID = "999";
 static const std::string TEST_NODE_ID = "99";
 static const std::string TEST_HOST = "test.host";
 static const std::string TEST_PORT = "2938";
+static const std::string TEST_LOCK_NAME = "test-lock";
 
 class MockRedisConnection : public RedisConnection {
 public:
@@ -165,6 +167,159 @@ TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
 	// call the utility method to publish node's address
 	// and expect 1 node as subscriber
 	ASSERT_EQ(InstancesUtil::removeNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str())), 0);
+}
+
+/**
+ * get a fast lock on system as following:
+ *	1.	execute "SETNX <mutex key> <current Unix timestamp + mutex timeout + 1>"
+ *		on the key for the mutex name
+ *	2.	if return value is "1", then proceed with operation, and then delete the key
+ *	3.	if return value is "0", then
+ *		a.	get mutex key value (timestamp of expiry)
+ *		b.	if it is more than current time, then wait (mutex in use)
+ *		c.	otherwise try following:
+ *			1)	execute "GETSET <mutex key> <current Unix timestamp + mutex timeout + 1>"
+ *			2)	check the return value to see if this is same as old expired value
+ *			3)	if return value is not same as original expired then some other instance
+ *				got the mutex, and this instance needs to wait (or abort)
+ *			4)	otherwise (if return value is same as expired), then instance successfully
+ *				acquired the mutex, proceed with operation
+ */
+TEST(InstancesUtilTest, fastLockCommandSequenceStep1Lock) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+
+	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
+	int ttl = 10;
+
+	// first try to acquire lock
+	std::string command1 = std::string("SETNX ") + key;
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(conn, cmd(StartsWith(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(1)));
+	}
+	// we expect a return value 0/success
+	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
+}
+
+TEST(InstancesUtilTest, fastLockCommandSequenceStep2Busy) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+
+	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
+	std::time_t now = std::time(0);
+	int ttl = 10;
+
+	// first try to acquire lock
+	std::string command1 = std::string("SETNX ") + key;
+	// then try to read expiry
+	std::string command2 = std::string("GET ") + key;
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(conn, cmd(StartsWith(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(0)));
+		EXPECT_CALL(conn, cmd(StartsWith(command2.c_str())))
+		.Times(1)
+		// mock return value to send an expiry which is ttl+1 sec in future
+		.WillOnce(Return(getStringResult(std::to_string(now + ttl + 1).c_str())));
+	}
+	// we expect a return value that has remaining time for lock is busy
+	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
+}
+
+TEST(InstancesUtilTest, fastLockCommandSequenceStep3Lost) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+
+	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
+	std::time_t now = std::time(0);
+	int ttl = 10;
+
+	// first try to acquire lock
+	std::string command1 = std::string("SETNX ") + key;
+	// then try to read expiry
+	std::string command2 = std::string("GET ") + key;
+	// then retry getting the lock
+	std::string command3 = std::string("GETSET ") + key;
+	// revert back lock value when lost
+	std::string command4 = std::string("SET ") + key;
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+
+		EXPECT_CALL(conn, cmd(StartsWith(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(0)));
+
+		EXPECT_CALL(conn, cmd(StartsWith(command2.c_str())))
+		.Times(1)
+		// mock return value to send old expiry which is in past
+		.WillOnce(Return(getStringResult(std::to_string(now - 1).c_str())));
+
+		EXPECT_CALL(conn, cmd(StartsWith(command3.c_str())))
+		.Times(1)
+		// mock return value to send new expiry which is ttl+1 sec in future
+		.WillOnce(Return(getStringResult(std::to_string(now + ttl + 1).c_str())));
+
+		EXPECT_CALL(conn, cmd(StartsWith(command4.c_str())))
+		.Times(1)
+		.WillOnce(Return(RedisResult()));
+	}
+	// we expect a return value that has remaining time for lock is busy
+	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
+}
+
+TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+
+	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
+	std::time_t now = std::time(0);
+	int ttl = 10;
+
+	// first try to acquire lock
+	std::string command1 = std::string("SETNX ") + key;
+	// then try to read expiry
+	std::string command2 = std::string("GET ") + key;
+	// then retry getting the lock
+	std::string command3 = std::string("GETSET ") + key;
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+
+		EXPECT_CALL(conn, cmd(StartsWith(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(0)));
+
+		EXPECT_CALL(conn, cmd(StartsWith(command2.c_str())))
+		.Times(1)
+		// mock return value to send old expiry which is in past
+		.WillOnce(Return(getStringResult(std::to_string(now - 1).c_str())));
+
+		EXPECT_CALL(conn, cmd(StartsWith(command3.c_str())))
+		.Times(1)
+		// mock return value to send same old expiry
+		.WillOnce(Return(getStringResult(std::to_string(now - 1).c_str())));
+	}
+	// we expect a return value 0/success
+	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
 }
 
 int main(int argc, char **argv) {
