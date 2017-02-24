@@ -18,42 +18,43 @@ TESTLIBS := $(BUILD_DIR)/$(HIREDIS_LIB) $(BUILD_DIR)/$(GTEST_LIB) $(BUILD_DIR)/$
 TESTS := $(patsubst $(TEST_DIR)/%.cpp, %, $(wildcard $(TEST_DIR)/*Test.cpp))
 CPPS := $(patsubst $(SRC_DIR)/%.cpp, %.cpp, $(SRCS))
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
-CFLAGS := -g -Wall -I$(ROOT_DIR)/$(INCLUDE_DIR) -I$(HIREDIS_DIR)/..
-TEST_CFLAGS := -g -Wall -I$(ROOT_DIR)/$(INCLUDE_DIR) -I$(GTEST_DIR)/include -I$(GMOCK_DIR)/include -I$(HIREDIS_DIR)/..
-LDFLAGS := -lstdc++ -lpthread
+CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(HIREDIS_DIR)/..
+TEST_CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(GTEST_DIR)/include -I$(GMOCK_DIR)/include -I$(HIREDIS_DIR)/..
+#LDFLAGS := -lstdc++ -lpthread
 
-all: $(LIB_REDIS) $(TESTS)
+all: $(LIB_REDIS) $(TESTS) redis-cli
 
-$(LIB_REDIS): $(HIREDIS_LIB) $(OBJS)
+$(LIB_REDIS): $(HIREDIS_LIB) $(CPPS)
+	@echo 'Building target: $@'
 	ar -r $(BUILD_DIR)/$@ $(OBJS)
 
-$(OBJS):
-	mkdir -p $(BUILD_DIR)
+$(CPPS):
 	@echo 'Building target: $@'
-	$(CC) -c $(CFLAGS) $(LDFLAGS) -o $@ $(patsubst $(BUILD_DIR)/%.o, $(SRC_DIR)/%.cpp, $@)
+	mkdir -p $(BUILD_DIR)
+	$(CC) -c $(CFLAGS) $(LDFLAGS) -o $(patsubst %.cpp, $(BUILD_DIR)/%.o, $@) $(SRC_DIR)/$@
 
 $(TESTS): $(GTEST_LIB) $(GMOCK_LIB) $(LIB_REDIS)
-	mkdir -p $(BUILD_DIR)
 	@echo 'Building test: $@'
+	mkdir -p $(BUILD_DIR)
 	$(CC) $(TEST_CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ $(TEST_DIR)/$@.cpp $(BUILD_DIR)/$(LIB_REDIS) $(TESTLIBS)
 	cd $(BUILD_DIR) && ./$@
 	rm -f $(BUILD_DIR)/core.*
 
 $(HIREDIS_LIB):
-	mkdir -p $(BUILD_DIR)
 	@echo 'Building hiredis library'
+	mkdir -p $(BUILD_DIR)
 	cd $(HIREDIS_DIR) && $(MAKE)
 	cp -f $(HIREDIS_DIR)/$(HIREDIS_LIB) $(BUILD_DIR)
 
 $(GTEST_LIB): 
-	mkdir -p $(BUILD_DIR)
 	@echo 'Building googletest'
+	mkdir -p $(BUILD_DIR)
 	cd $(GTEST_DIR)/make && $(MAKE)
 	cp -f $(GTEST_DIR)/make/$(GTEST_LIB) $(BUILD_DIR)
 
 $(GMOCK_LIB): $(GTEST_LIB)
-	mkdir -p $(BUILD_DIR)
 	@echo 'Building googlemock'
+	mkdir -p $(BUILD_DIR)
 	cd $(GMOCK_DIR)/make && $(MAKE)
 	cp -f $(GMOCK_DIR)/make/$(GMOCK_LIB) $(BUILD_DIR)
 
@@ -63,7 +64,7 @@ cleanlib:
 
 redis-cli: cleanlib $(LIB_REDIS)
 	@echo 'Building redis-cli'
-	$(CC) -c $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ Test/TestRedisLib.cpp $(BUILD_DIR)/$(LIB_REDIS) $(BUILD_DIR)/$(HIREDIS_LIB)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ Test/TestRedisLib.cpp $(BUILD_DIR)/$(LIB_REDIS) $(BUILD_DIR)/$(HIREDIS_LIB)
 
 clean:
 	cd $(GTEST_DIR)/make && $(MAKE) clean
@@ -71,4 +72,4 @@ clean:
 	cd $(HIREDIS_DIR) && $(MAKE) clean
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all
+.PHONY: all cleanlib
