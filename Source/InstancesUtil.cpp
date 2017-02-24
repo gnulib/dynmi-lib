@@ -13,16 +13,51 @@
 #include <ctime>
 
 /**
+ * increment a counter and get value
+ */
+int InstancesUtil::incrCounter(RedisConnection& conn, const char* appId, const char* counter) {
+	if (!conn.isConnected()) {
+		return -1;
+	}
+
+	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + appId + ":COUNTERS:" + counter;
+
+	std::string command = std::string("INCR ") + key;
+	RedisResult res = conn.cmd(command.c_str());
+	if(res.resultType() != INTEGER) {
+		return -1;
+	}
+
+	return res.intResult();
+}
+
+/**
+ * decrement a counter and get value
+ */
+int InstancesUtil::decrCounter(RedisConnection& conn, const char* appId, const char* counter) {
+	if (!conn.isConnected()) {
+		return -1;
+	}
+
+	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + appId + ":COUNTERS:" + counter;
+
+	std::string command = std::string("DECR ") + key;
+	RedisResult res = conn.cmd(command.c_str());
+	if(res.resultType() != INTEGER) {
+		return -1;
+	}
+
+	return res.intResult();
+}
+
+/**
  * get a new ID for a newly deploying instance of the application
  * (any restart correspond to a new instance)
  */
 int InstancesUtil::getNewInstanceId(RedisConnection& conn, const char* appId) {
-	std::string command = std::string("INCR ") + INSTANCES_UTIL_NAMESPACE + ":" + appId + ":NODES";
-	RedisResult res = conn.cmd(command.c_str());
-	if (res.resultType() == INTEGER) {
-		return res.intResult();
-	}
-	return -1;
+	return InstancesUtil::incrCounter(conn, appId, "NODES");
 }
 
 /**
@@ -109,7 +144,7 @@ int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
 
 	std::string key3 = std::string(INSTANCES_UTIL_NAMESPACE) + ":" + appId
 			+ ":INSTANCE:" + std::to_string(nodeId) + ":ADDRESS";
-	std::string command3 = std::string("EXPIRE ") + key3 + " 10";
+	std::string command3 = std::string("DEL ") + key3;
 	res = conn.cmd(command3.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
 		return -1;

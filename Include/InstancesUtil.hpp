@@ -22,6 +22,12 @@ private:
 	InstancesUtil();
 	~InstancesUtil();
 public:
+	// increment and get a counter
+	static int incrCounter(RedisConnection& conn, const char* appId, const char* counter);
+
+	// decrement and get a counter
+	static int decrCounter(RedisConnection& conn, const char* appId, const char* counter);
+
 	// get a new ID for a newly deploying instance of the application
 	static int getNewInstanceId(RedisConnection& conn, const char* appId);
 

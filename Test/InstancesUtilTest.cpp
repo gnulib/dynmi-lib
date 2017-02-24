@@ -34,6 +34,10 @@ TEST(InstancesUtilTest, getNewInstanceIdNonIntegerResultType) {
 	MockRedisConnection conn(NULL, 0);
 
 	// setup mock to expect command
+	EXPECT_CALL(conn, isConnected())
+	.Times(1)
+	.WillOnce(Return(true));
+
 	EXPECT_CALL(conn, cmd(_))
 		// one time
 		.Times(1)
@@ -51,6 +55,10 @@ TEST(InstancesUtilTest, getNewInstanceIdCommandFailure) {
 	MockRedisConnection conn(NULL, 0);
 
 	// setup mock to expect command
+	EXPECT_CALL(conn, isConnected())
+	.Times(1)
+	.WillOnce(Return(true));
+
 	EXPECT_CALL(conn, cmd(_))
 		// one time
 		.Times(1)
@@ -69,7 +77,11 @@ TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
 
 	// setup mock to expect command with following schema
 	// INCR <NAMESPACE PREFIX>:<App ID>:NODES
-	std::string command = std::string("INCR ") + INSTANCES_UTIL_NAMESPACE + ":" + TEST_APP_ID + ":NODES";
+	std::string command = std::string("INCR ") + INSTANCES_UTIL_NAMESPACE + ":" + TEST_APP_ID + ":COUNTERS:NODES";
+	EXPECT_CALL(conn, isConnected())
+	.Times(1)
+	.WillOnce(Return(true));
+
 	EXPECT_CALL(conn, cmd(StrEq(command.c_str())))
 		// one time
 		.Times(1)
@@ -85,6 +97,10 @@ TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
 	MockRedisConnection conn(NULL, 0);
 
 	// setup mock to expect command
+	EXPECT_CALL(conn, isConnected())
+	.Times(1)
+	.WillOnce(Return(true));
+
 	EXPECT_CALL(conn, cmd(_))
 		// one time
 		.Times(1)
@@ -144,9 +160,9 @@ TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
 	std::string command2 = std::string("SREM ") + INSTANCES_UTIL_NAMESPACE
 			+ ":" + TEST_APP_ID + ":INSTANCES " + TEST_NODE_ID;
 	// finally remove node's address details after 10 secs
-	std::string command3 = std::string("EXPIRE ") + INSTANCES_UTIL_NAMESPACE
+	std::string command3 = std::string("DEL ") + INSTANCES_UTIL_NAMESPACE
 							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
-							+ ":ADDRESS 10";
+							+ ":ADDRESS";
 
 	// expect following calls in sequence
 	{
