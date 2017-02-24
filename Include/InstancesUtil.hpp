@@ -22,8 +22,12 @@ private:
 	InstancesUtil();
 	~InstancesUtil();
 public:
+	// get a new ID for a newly deploying instance of the application
 	static int getNewInstanceId(RedisConnection& conn, const char* appId);
 
+	// publish a node's address details
+	static int publishNodeDetails(RedisConnection& conn, const char* appId,
+					const int nodeId, const char* host, int port, int ttl);
 };
 
 

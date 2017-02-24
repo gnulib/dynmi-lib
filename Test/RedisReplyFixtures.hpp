@@ -62,4 +62,10 @@ RedisResult getIntegerResult(const int value) {
 	return res;
 }
 
+RedisResult getStringResult(const char* value) {
+	RedisResult res = RedisResult();
+	res.setRedisReply(getStringReply(value));
+	return res;
+}
+
 #endif /* TEST_REDISREPLYFIXTURES_HPP_ */

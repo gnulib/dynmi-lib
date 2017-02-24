@@ -15,7 +15,10 @@
 
 using namespace ::testing;
 
-static const char * TEST_APP_ID = "999";
+static const std::string TEST_APP_ID = "999";
+static const std::string TEST_NODE_ID = "99";
+static const std::string TEST_HOST = "test.host";
+static const std::string TEST_PORT = "2938";
 
 class MockRedisConnection : public RedisConnection {
 public:
@@ -38,7 +41,7 @@ TEST(InstancesUtilTest, getNewInstanceIdNonIntegerResultType) {
 
 	// verify that InstanceUtil returns back instance ID as -1
 	// when redis operation result is of type error
-	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID), -1);
+	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID.c_str()), -1);
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdCommandFailure) {
@@ -55,7 +58,7 @@ TEST(InstancesUtilTest, getNewInstanceIdCommandFailure) {
 
 	// verify that InstanceUtil returns back instance ID as -1
 	// when command execution fails
-	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID), -1);
+	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID.c_str()), -1);
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
@@ -63,8 +66,8 @@ TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
 	MockRedisConnection conn(NULL, 0);
 
 	// setup mock to expect command with following schema
-	// INCR <NAMESPACE PREFIX>:<App ID>:INSTANCES
-	std::string command = std::string("INCR ") + INSTANCES_UTIL_NAMESPACE + ":" + TEST_APP_ID + ":INSTANCES";
+	// INCR <NAMESPACE PREFIX>:<App ID>:NODES
+	std::string command = std::string("INCR ") + INSTANCES_UTIL_NAMESPACE + ":" + TEST_APP_ID + ":NODES";
 	EXPECT_CALL(conn, cmd(StrEq(command.c_str())))
 		// one time
 		.Times(1)
@@ -72,27 +75,62 @@ TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// invoke the utility with request to reserver instance ID
-	InstancesUtil::getNewInstanceId(conn, TEST_APP_ID);
+	InstancesUtil::getNewInstanceId(conn, TEST_APP_ID.c_str());
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
-	// initialize redis operation result as INTEGER type
-	RedisResult res = RedisResult();
-	res.setRedisReply(getIntReply(1));
-
 	// setup mock to expect command
 	EXPECT_CALL(conn, cmd(_))
 		// one time
 		.Times(1)
 		// and return back an integer reply
-		.WillOnce(Return(getIntegerResult(99)));
+		.WillOnce(Return(getIntegerResult(std::atoi(TEST_NODE_ID.c_str()))));
 
 	// verify that InstanceUtil returns back instance ID same as
 	// what we initialized our redis response above
-	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID), 99);
+	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID.c_str()), 99);
+}
+
+TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+	// <NAMESPACE PREFIX>:<App ID>:INSTANCE:<Node ID>:ADDRESS (TTL set to specified value)
+	std::string command1 = std::string("HMSET ") + INSTANCES_UTIL_NAMESPACE
+							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
+							+ ":ADDRESS HOST " + TEST_HOST + " PORT " + TEST_PORT;
+	std::string command2 = std::string("EXPIRE ") + INSTANCES_UTIL_NAMESPACE
+							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
+							+ ":ADDRESS 20";
+	std::string command3 = std::string("SADD ") + INSTANCES_UTIL_NAMESPACE
+			+ ":" + TEST_APP_ID + ":INSTANCES " + TEST_NODE_ID;
+
+	std::string command4 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
+			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCES " + TEST_NODE_ID;
+	// expect following calls in sequence
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(conn, cmd(StrEq(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(RedisResult()));
+		EXPECT_CALL(conn, cmd(StrEq(command2.c_str())))
+		.Times(1)
+		.WillOnce(Return(RedisResult()));
+		EXPECT_CALL(conn, cmd(StrEq(command3.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(1)));
+		EXPECT_CALL(conn, cmd(StrEq(command4.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(1)));
+	}
+	// call the utility method to publish node's address
+	// and expect 1 node as subscriber
+	ASSERT_EQ(InstancesUtil::publishNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), TEST_HOST.c_str(), std::atoi(TEST_PORT.c_str()), 20), 1);
 }
 
 int main(int argc, char **argv) {

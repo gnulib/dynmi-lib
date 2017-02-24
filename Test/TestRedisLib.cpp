@@ -53,6 +53,7 @@ int main(int argc, char **argv) {
 	} else {
 		id = InstancesUtil::getNewInstanceId(conn, "Test-App");
 		cout << "my instance ID: " << id << endl;
+		InstancesUtil::publishNodeDetails(conn, "Test-App",id, "localhost", 2039, 60);
 	}
 	bool done=false;
 	bool isSubscribed = false;
