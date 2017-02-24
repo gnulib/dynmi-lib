@@ -59,6 +59,12 @@ $(GMOCK_LIB): $(GTEST_LIB)
 
 test: $(LIB_REDIS) $(TESTS)
 
+cleanlib:
+
+redis-cli: cleanlib $(LIB_REDIS)
+	@echo 'Building redis-cli'
+	$(CC) -c $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ Test/TestRedisLib.cpp $(BUILD_DIR)/$(LIB_REDIS) $(BUILD_DIR)/$(HIREDIS_LIB)
+
 clean:
 	cd $(GTEST_DIR)/make && $(MAKE) clean
 	cd $(GMOCK_DIR)/make && $(MAKE) clean
