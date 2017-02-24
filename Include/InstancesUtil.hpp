@@ -28,6 +28,10 @@ public:
 	// publish a node's address details
 	static int publishNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId, const char* host, int port, int ttl);
+
+	// remove a node's details from system
+	static int removeNodeDetails(RedisConnection& conn, const char* appId,
+					const int nodeId);
 };
 
 

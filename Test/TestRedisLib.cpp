@@ -66,6 +66,9 @@ int main(int argc, char **argv) {
 			std::cin.getline(message,1023);
 			if (strstr(message, "subscribe") == message || strstr(message, "SUBSCRIBE") == message) {
 				isSubscribed = true;
+			} else if (strstr(message, "quit") == message || strstr(message, "QUIT") == message) {
+				done = true;
+				continue;
 			}
 		}
 		RedisResult res = conn.cmd(message);
@@ -74,6 +77,11 @@ int main(int argc, char **argv) {
 		} else {
 			printResult(res);
 		}
+	}
+	if (InstancesUtil::removeNodeDetails(conn, "Test-App",id) == 0) {
+		cout << "gracefully removed instance from system" << endl;
+	} else {
+		cout << "failed to remove instance from system" << endl;
 	}
     return 0;
 }

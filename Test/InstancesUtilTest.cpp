@@ -97,7 +97,6 @@ TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
 TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
-	// <NAMESPACE PREFIX>:<App ID>:INSTANCE:<Node ID>:ADDRESS (TTL set to specified value)
 	std::string command1 = std::string("HMSET ") + INSTANCES_UTIL_NAMESPACE
 							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
 							+ ":ADDRESS HOST " + TEST_HOST + " PORT " + TEST_PORT;
@@ -108,7 +107,7 @@ TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
 			+ ":" + TEST_APP_ID + ":INSTANCES " + TEST_NODE_ID;
 
 	std::string command4 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
-			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCES " + TEST_NODE_ID;
+			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_UP " + TEST_NODE_ID;
 	// expect following calls in sequence
 	{
 		InSequence dummy;
@@ -131,6 +130,41 @@ TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
 	// call the utility method to publish node's address
 	// and expect 1 node as subscriber
 	ASSERT_EQ(InstancesUtil::publishNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), TEST_HOST.c_str(), std::atoi(TEST_PORT.c_str()), 20), 1);
+}
+
+TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+	// first publish node down to all active instances
+	std::string command1 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
+			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_DOWN " + TEST_NODE_ID;
+	// then remove node's ID from set of active instances
+	std::string command2 = std::string("SREM ") + INSTANCES_UTIL_NAMESPACE
+			+ ":" + TEST_APP_ID + ":INSTANCES " + TEST_NODE_ID;
+	// finally remove node's address details after 10 secs
+	std::string command3 = std::string("EXPIRE ") + INSTANCES_UTIL_NAMESPACE
+							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
+							+ ":ADDRESS 10";
+
+	// expect following calls in sequence
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(conn, cmd(StrEq(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(1)));
+		EXPECT_CALL(conn, cmd(StrEq(command2.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(1)));
+		EXPECT_CALL(conn, cmd(StrEq(command3.c_str())))
+		.Times(1)
+		.WillOnce(Return(RedisResult()));
+	}
+	// call the utility method to publish node's address
+	// and expect 1 node as subscriber
+	ASSERT_EQ(InstancesUtil::removeNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str())), 0);
 }
 
 int main(int argc, char **argv) {

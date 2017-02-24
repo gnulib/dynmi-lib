@@ -65,7 +65,7 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 	}
 
 	std::string command3 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
-			+ ":" + appId + ":CHANNELS:INSTANCES " + std::to_string(nodeId);
+			+ ":" + appId + ":CHANNELS:INSTANCE_UP " + std::to_string(nodeId);
 	res = conn.cmd(command3.c_str());
 	if(res.resultType() != INTEGER) {
 		// roll back if possible
@@ -79,4 +79,40 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 	}
 	// return the number of active instances notified
 	return res.intResult();
+}
+
+/**
+ * remove a node's entries from system, and broadcast node down
+ */
+int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
+					const int nodeId) {
+	if (!conn.isConnected()) {
+		return -1;
+	}
+
+	std::string command1 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
+			+ ":" + appId + ":CHANNELS:INSTANCE_DOWN " + std::to_string(nodeId);
+	RedisResult res = conn.cmd(command1.c_str());
+	if(res.resultType() == ERROR || res.resultType() == FAILED) {
+		return -1;
+	}
+
+	std::string key2 = std::string(INSTANCES_UTIL_NAMESPACE)
+			+ ":" + appId + ":INSTANCES";
+	std::string command2 = std::string("SREM ") + key2
+			+ " " + std::to_string(nodeId);
+	res = conn.cmd(command2.c_str());
+	if(res.resultType() == ERROR || res.resultType() == FAILED) {
+		return -1;
+	}
+
+	std::string key3 = std::string(INSTANCES_UTIL_NAMESPACE) + ":" + appId
+			+ ":INSTANCE:" + std::to_string(nodeId) + ":ADDRESS";
+	std::string command3 = std::string("EXPIRE ") + key3 + " 10";
+	res = conn.cmd(command3.c_str());
+	if(res.resultType() == ERROR || res.resultType() == FAILED) {
+		return -1;
+	}
+
+	return 0;
 }
