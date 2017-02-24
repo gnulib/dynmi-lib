@@ -11,6 +11,7 @@
 #include "RedisResult.hpp"
 #include <string>
 #include <ctime>
+#include <sstream>
 
 /**
  * increment a counter and get value
@@ -73,23 +74,32 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 	if (!conn.isConnected()) {
 		return -1;
 	}
+#if __cplusplus >= 201103L
+	std::string nodeIdStr = std::to_string(nodeId);
+	std::string portStr = std::to_string(port);
+	std::string ttlStr = std::to_string(ttl);
+#else
+	std::string nodeIdStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (nodeId)) )->str();
+	std::string portStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (port)) )->str();
+	std::string ttlStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (ttl)) )->str();
+#endif
 	std::string key1 = std::string(INSTANCES_UTIL_NAMESPACE) + ":" + appId
-			+ ":INSTANCE:" + std::to_string(nodeId) + ":ADDRESS";
+			+ ":INSTANCE:" + nodeIdStr + ":ADDRESS";
 	std::string command1 = std::string("HMSET ") + key1
 							+ " HOST " + host
-							+ " PORT " + std::to_string(port);
+							+ " PORT " + portStr;
 	RedisResult res = conn.cmd(command1.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
 		return -1;
 	} else {
-		command1 = std::string("EXPIRE ") + key1 + " " + std::to_string(ttl);
+		command1 = std::string("EXPIRE ") + key1 + " " + ttlStr;
 		conn.cmd(command1.c_str());
 	}
 
 	std::string key2 = std::string(INSTANCES_UTIL_NAMESPACE)
 			+ ":" + appId + ":INSTANCES";
 	std::string command2 = std::string("SADD ") + key2
-			+ " " + std::to_string(nodeId);
+			+ " " + nodeIdStr;
 	res = conn.cmd(command2.c_str());
 	if(res.resultType() != INTEGER || res.intResult() == 0) {
 		// roll back if possible
@@ -101,14 +111,14 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 	}
 
 	std::string command3 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
-			+ ":" + appId + ":CHANNELS:INSTANCE_UP " + std::to_string(nodeId);
+			+ ":" + appId + ":CHANNELS:INSTANCE_UP " + nodeIdStr;
 	res = conn.cmd(command3.c_str());
 	if(res.resultType() != INTEGER) {
 		// roll back if possible
 		if (res.resultType() != FAILED) {
 			command1 = std::string("DEL ") + key1;
 			conn.cmd(command1.c_str());
-			command2 = std::string("SREM ") + key2 + " " + std::to_string(nodeId);
+			command2 = std::string("SREM ") + key2 + " " + nodeIdStr;
 			conn.cmd(command2.c_str());
 		}
 		return -1;
@@ -125,9 +135,16 @@ int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
 	if (!conn.isConnected()) {
 		return -1;
 	}
+#if __cplusplus >= 201103L
+	std::string nodeIdStr = std::to_string(nodeId);
+	std::string portStr = std::to_string(port);
+	std::string ttlStr = std::to_string(ttl);
+#else
+	std::string nodeIdStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (nodeId)) )->str();
+#endif
 
 	std::string command1 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
-			+ ":" + appId + ":CHANNELS:INSTANCE_DOWN " + std::to_string(nodeId);
+			+ ":" + appId + ":CHANNELS:INSTANCE_DOWN " + nodeIdStr;
 	RedisResult res = conn.cmd(command1.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
 		return -1;
@@ -136,14 +153,14 @@ int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
 	std::string key2 = std::string(INSTANCES_UTIL_NAMESPACE)
 			+ ":" + appId + ":INSTANCES";
 	std::string command2 = std::string("SREM ") + key2
-			+ " " + std::to_string(nodeId);
+			+ " " + nodeIdStr;
 	res = conn.cmd(command2.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
 		return -1;
 	}
 
 	std::string key3 = std::string(INSTANCES_UTIL_NAMESPACE) + ":" + appId
-			+ ":INSTANCE:" + std::to_string(nodeId) + ":ADDRESS";
+			+ ":INSTANCE:" + nodeIdStr + ":ADDRESS";
 	std::string command3 = std::string("DEL ") + key3;
 	res = conn.cmd(command3.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
@@ -173,13 +190,20 @@ int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const c
 	if (!conn.isConnected()) {
 		return -1;
 	}
+	std::time_t now = std::time(0);
+#if __cplusplus >= 201103L
+	std::string ttlStr = std::to_string(ttl);
+	std::string expireStr = std::to_string(now + ttlStr + 1);
+#else
+	std::string ttlStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (ttl + 1)) )->str();
+	std::string expireStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (now + ttl + 1)) )->str();
+#endif
 
 	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
 			+ ":" + appId + ":LOCKS:" + lockName;
-	std::time_t now = std::time(0);
 
 	// STEP 1
-	std::string command = std::string("SETNX ") + key + " " + std::to_string(now + ttl + 1);
+	std::string command = std::string("SETNX ") + key + " " + expireStr;
 	RedisResult res = conn.cmd(command.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
 		return -1;
@@ -188,7 +212,7 @@ int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const c
 	// STEP 2
 	if (res.intResult() == 1) {
 		// set an expiry to this lock
-		command = std::string("EXPIRE ") + key + " " + std::to_string(ttl + 1);
+		command = std::string("EXPIRE ") + key + " " + ttlStr;
 		conn.cmd(command.c_str());
 		return 0;
 	}
@@ -201,20 +225,30 @@ int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const c
 	}
 
 	// STEP 3.b
+#if __cplusplus >= 201103L
 	long expiry = std::stol(res.strResult());
+#else
+	long expiry;
+	std::istringstream(res.strResult()) >> expiry;
+#endif
 	if(expiry > now) {
 		return expiry - now;
 	}
 
 	// STEP 3.c.1
-	command = std::string("GETSET ") + key + " " + std::to_string(now + ttl + 1);
+	command = std::string("GETSET ") + key + " " + expireStr;
 	res = conn.cmd(command.c_str());
 	if(res.resultType() != STRING) {
 		return -1;
 	}
 
 	// STEP 3.c.2
+#if __cplusplus >= 201103L
 	long newExpiry = std::stol(res.strResult());
+#else
+	long newExpiry;
+	std::istringstream(res.strResult()) >> newExpiry;
+#endif
 	if(expiry != newExpiry) {
 		// revert back lock's expire value to newExpiry
 		command = std::string("SET ") + key + " " + res.strResult();
@@ -226,7 +260,7 @@ int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const c
 
 	// STEP 3.c.4
 	// set an expiry to this lock
-	command = std::string("EXPIRE ") + key + " " + std::to_string(ttl + 1);
+	command = std::string("EXPIRE ") + key + " " + ttlStr;
 	conn.cmd(command.c_str());
 	return 0;
 }

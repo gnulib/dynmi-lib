@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 #include <iostream>
-
+#include <cstring>
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
 #include "InstancesUtil.hpp"

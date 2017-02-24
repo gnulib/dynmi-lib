@@ -212,7 +212,12 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep1Lock) {
 	// first try to acquire lock
 	std::string command1 = std::string("SETNX ") + key;
 	// then set lock expiry when we lock successfully
+#if __cplusplus >= 201103L
 	std::string command2 = std::string("EXPIRE ") + key + " " + std::to_string(ttl+1);
+#else
+	std::string command2 = std::string("EXPIRE ") + key + " "
+			+ static_cast<std::ostringstream*>( &(std::ostringstream() << (ttl + 1)) )->str();
+#endif
 	{
 		InSequence dummy;
 		EXPECT_CALL(conn, isConnected())
@@ -242,6 +247,11 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep2Busy) {
 	std::string command1 = std::string("SETNX ") + key;
 	// then try to read expiry
 	std::string command2 = std::string("GET ") + key;
+#if __cplusplus >= 201103L
+	std::string oldExpiry = std::string("EXPIRE ") + key + " " + std::to_string(now + ttl + 1);
+#else
+	std::string oldExpiry = static_cast<std::ostringstream*>( &(std::ostringstream() << (now + ttl + 1)) )->str();
+#endif
 	{
 		InSequence dummy;
 		EXPECT_CALL(conn, isConnected())
@@ -253,7 +263,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep2Busy) {
 		EXPECT_CALL(conn, cmd(StartsWith(command2.c_str())))
 		.Times(1)
 		// mock return value to send an expiry which is ttl+1 sec in future
-		.WillOnce(Return(getStringResult(std::to_string(now + ttl + 1).c_str())));
+		.WillOnce(Return(getStringResult(oldExpiry.c_str())));
 	}
 	// we expect a return value that has remaining time for lock is busy
 	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
@@ -276,6 +286,13 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Lost) {
 	std::string command3 = std::string("GETSET ") + key;
 	// revert back lock value when lost
 	std::string command4 = std::string("SET ") + key;
+#if __cplusplus >= 201103L
+	std::string oldExpiry = std::string("EXPIRE ") + key + " " + std::to_string(now - 1);
+	std::string newExpiry = std::string("EXPIRE ") + key + " " + std::to_string(now + ttl + 1);
+#else
+	std::string oldExpiry = static_cast<std::ostringstream*>( &(std::ostringstream() << (now - 1)) )->str();
+	std::string newExpiry = static_cast<std::ostringstream*>( &(std::ostringstream() << (now + ttl + 1)) )->str();
+#endif
 	{
 		InSequence dummy;
 		EXPECT_CALL(conn, isConnected())
@@ -289,12 +306,12 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Lost) {
 		EXPECT_CALL(conn, cmd(StartsWith(command2.c_str())))
 		.Times(1)
 		// mock return value to send old expiry which is in past
-		.WillOnce(Return(getStringResult(std::to_string(now - 1).c_str())));
+		.WillOnce(Return(getStringResult(oldExpiry.c_str())));
 
 		EXPECT_CALL(conn, cmd(StartsWith(command3.c_str())))
 		.Times(1)
 		// mock return value to send new expiry which is ttl+1 sec in future
-		.WillOnce(Return(getStringResult(std::to_string(now + ttl + 1).c_str())));
+		.WillOnce(Return(getStringResult(newExpiry.c_str())));
 
 		EXPECT_CALL(conn, cmd(StartsWith(command4.c_str())))
 		.Times(1)
@@ -319,8 +336,16 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
 	std::string command2 = std::string("GET ") + key;
 	// then retry getting the lock
 	std::string command3 = std::string("GETSET ") + key;
+#if __cplusplus >= 201103L
+	std::string oldExpiry = std::string("EXPIRE ") + key + " " + std::to_string(now - 1);
 	// set lock expiry after we won it
 	std::string command4 = std::string("EXPIRE ") + key + " " + std::to_string(ttl+1);
+#else
+	std::string oldExpiry = static_cast<std::ostringstream*>( &(std::ostringstream() << (now - 1)) )->str();
+	// set lock expiry after we won it
+	std::string command4 = std::string("EXPIRE ") + key + " "
+			+ static_cast<std::ostringstream*>( &(std::ostringstream() << (ttl + 1)) )->str();
+#endif
 	{
 		InSequence dummy;
 		EXPECT_CALL(conn, isConnected())
@@ -334,12 +359,12 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
 		EXPECT_CALL(conn, cmd(StartsWith(command2.c_str())))
 		.Times(1)
 		// mock return value to send old expiry which is in past
-		.WillOnce(Return(getStringResult(std::to_string(now - 1).c_str())));
+		.WillOnce(Return(getStringResult(oldExpiry.c_str())));
 
 		EXPECT_CALL(conn, cmd(StartsWith(command3.c_str())))
 		.Times(1)
 		// mock return value to send same old expiry
-		.WillOnce(Return(getStringResult(std::to_string(now - 1).c_str())));
+		.WillOnce(Return(getStringResult(oldExpiry.c_str())));
 
 		EXPECT_CALL(conn, cmd(StrEq(command4.c_str())))
 		.Times(1)

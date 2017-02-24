@@ -20,7 +20,7 @@ CPPS := $(patsubst $(SRC_DIR)/%.cpp, %.cpp, $(SRCS))
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(HIREDIS_DIR)/..
 TEST_CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(GTEST_DIR)/include -I$(GMOCK_DIR)/include -I$(HIREDIS_DIR)/..
-#LDFLAGS := -lstdc++ -lpthread
+LDFLAGS := -lstdc++ -lpthread
 
 all: $(LIB_REDIS) $(TESTS) redis-cli
 
