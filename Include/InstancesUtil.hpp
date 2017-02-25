@@ -8,10 +8,6 @@
 #ifndef INCLUDE_INSTANCESUTIL_HPP_
 #define INCLUDE_INSTANCESUTIL_HPP_
 
-// a namespace prefix to use with all our keys with Redis
-// change this value to use different/custom app namespace
-static const char * INSTANCES_UTIL_NAMESPACE = "SCALABLE_APP";
-
 class RedisConnection;
 
 /**

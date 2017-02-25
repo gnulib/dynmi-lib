@@ -77,7 +77,7 @@ TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
 
 	// setup mock to expect command with following schema
 	// INCR <NAMESPACE PREFIX>:<App ID>:NODES
-	std::string command = std::string("INCR ") + INSTANCES_UTIL_NAMESPACE + ":" + TEST_APP_ID + ":COUNTERS:NODES";
+	std::string command = std::string("INCR ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":COUNTERS:NODES";
 	EXPECT_CALL(conn, isConnected())
 	.Times(1)
 	.WillOnce(Return(true));
@@ -115,16 +115,16 @@ TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
 TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
-	std::string command1 = std::string("HMSET ") + INSTANCES_UTIL_NAMESPACE
+	std::string command1 = std::string("HMSET ") + NAMESPACE_PREFIX
 							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
 							+ ":ADDRESS HOST " + TEST_HOST + " PORT " + TEST_PORT;
-	std::string command2 = std::string("EXPIRE ") + INSTANCES_UTIL_NAMESPACE
+	std::string command2 = std::string("EXPIRE ") + NAMESPACE_PREFIX
 							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
 							+ ":ADDRESS 20";
-	std::string command3 = std::string("SADD ") + INSTANCES_UTIL_NAMESPACE
+	std::string command3 = std::string("SADD ") + NAMESPACE_PREFIX
 			+ ":" + TEST_APP_ID + ":INSTANCES " + TEST_NODE_ID;
 
-	std::string command4 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
+	std::string command4 = std::string("PUBLISH ") + NAMESPACE_PREFIX
 			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_UP " + TEST_NODE_ID;
 	// expect following calls in sequence
 	{
@@ -154,13 +154,13 @@ TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 	// first publish node down to all active instances
-	std::string command1 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
+	std::string command1 = std::string("PUBLISH ") + NAMESPACE_PREFIX
 			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_DOWN " + TEST_NODE_ID;
 	// then remove node's ID from set of active instances
-	std::string command2 = std::string("SREM ") + INSTANCES_UTIL_NAMESPACE
+	std::string command2 = std::string("SREM ") + NAMESPACE_PREFIX
 			+ ":" + TEST_APP_ID + ":INSTANCES " + TEST_NODE_ID;
 	// finally remove node's address details after 10 secs
-	std::string command3 = std::string("DEL ") + INSTANCES_UTIL_NAMESPACE
+	std::string command3 = std::string("DEL ") + NAMESPACE_PREFIX
 							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
 							+ ":ADDRESS";
 
@@ -205,7 +205,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep1Lock) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
-	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
 	int ttl = 10;
 
@@ -238,7 +238,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep2Busy) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
-	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
 	std::time_t now = std::time(0);
 	int ttl = 10;
@@ -273,7 +273,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Lost) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
-	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
 	std::time_t now = std::time(0);
 	int ttl = 10;
@@ -325,7 +325,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 
-	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
 	std::time_t now = std::time(0);
 	int ttl = 10;

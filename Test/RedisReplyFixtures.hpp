@@ -68,4 +68,10 @@ RedisResult getStringResult(const char* value) {
 	return res;
 }
 
+RedisResult getArrayResult(int size, redisReply** values) {
+	RedisResult res = RedisResult();
+	res.setRedisReply(getArrayReply(size, values));
+	return res;
+}
+
 #endif /* TEST_REDISREPLYFIXTURES_HPP_ */

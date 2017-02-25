@@ -33,9 +33,16 @@ TEST(BroadcastUtilTest, initializationSuccess) {
 	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
 
 	// setup mock to expect command
+	std::string command = std::string("SUBSCRIBE ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL";
 	EXPECT_CALL(*conn, isConnected())
 	.Times(1)
 	.WillOnce(Return(true));
+
+	EXPECT_CALL(*conn, cmd(StartsWith(command.c_str())))
+		// one time
+		.Times(1)
+		// and return back an integer reply
+		.WillOnce(Return(RedisResult()));
 
 	// verify that BroadcastUtil intializes
 	std::cout << "Initialization started" << std::endl;

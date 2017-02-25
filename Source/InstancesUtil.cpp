@@ -21,7 +21,7 @@ int InstancesUtil::incrCounter(RedisConnection& conn, const char* appId, const c
 		return -1;
 	}
 
-	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + appId + ":COUNTERS:" + counter;
 
 	std::string command = std::string("INCR ") + key;
@@ -41,7 +41,7 @@ int InstancesUtil::decrCounter(RedisConnection& conn, const char* appId, const c
 		return -1;
 	}
 
-	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + appId + ":COUNTERS:" + counter;
 
 	std::string command = std::string("DECR ") + key;
@@ -83,7 +83,7 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 	std::string portStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (port)) )->str();
 	std::string ttlStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (ttl)) )->str();
 #endif
-	std::string key1 = std::string(INSTANCES_UTIL_NAMESPACE) + ":" + appId
+	std::string key1 = std::string(NAMESPACE_PREFIX) + ":" + appId
 			+ ":INSTANCE:" + nodeIdStr + ":ADDRESS";
 	std::string command1 = std::string("HMSET ") + key1
 							+ " HOST " + host
@@ -96,7 +96,7 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 		conn.cmd(command1.c_str());
 	}
 
-	std::string key2 = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key2 = std::string(NAMESPACE_PREFIX)
 			+ ":" + appId + ":INSTANCES";
 	std::string command2 = std::string("SADD ") + key2
 			+ " " + nodeIdStr;
@@ -110,7 +110,7 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 		return -1;
 	}
 
-	std::string command3 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
+	std::string command3 = std::string("PUBLISH ") + NAMESPACE_PREFIX
 			+ ":" + appId + ":CHANNELS:INSTANCE_UP " + nodeIdStr;
 	res = conn.cmd(command3.c_str());
 	if(res.resultType() != INTEGER) {
@@ -143,14 +143,14 @@ int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
 	std::string nodeIdStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (nodeId)) )->str();
 #endif
 
-	std::string command1 = std::string("PUBLISH ") + INSTANCES_UTIL_NAMESPACE
+	std::string command1 = std::string("PUBLISH ") + NAMESPACE_PREFIX
 			+ ":" + appId + ":CHANNELS:INSTANCE_DOWN " + nodeIdStr;
 	RedisResult res = conn.cmd(command1.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
 		return -1;
 	}
 
-	std::string key2 = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key2 = std::string(NAMESPACE_PREFIX)
 			+ ":" + appId + ":INSTANCES";
 	std::string command2 = std::string("SREM ") + key2
 			+ " " + nodeIdStr;
@@ -159,7 +159,7 @@ int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
 		return -1;
 	}
 
-	std::string key3 = std::string(INSTANCES_UTIL_NAMESPACE) + ":" + appId
+	std::string key3 = std::string(NAMESPACE_PREFIX) + ":" + appId
 			+ ":INSTANCE:" + nodeIdStr + ":ADDRESS";
 	std::string command3 = std::string("DEL ") + key3;
 	res = conn.cmd(command3.c_str());
@@ -199,7 +199,7 @@ int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const c
 	std::string expireStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (now + ttl + 1)) )->str();
 #endif
 
-	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + appId + ":LOCKS:" + lockName;
 
 	// STEP 1
@@ -270,7 +270,7 @@ int InstancesUtil::releaseFastLock(RedisConnection& conn, const char* appId, con
 		return -1;
 	}
 
-	std::string key = std::string(INSTANCES_UTIL_NAMESPACE)
+	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + appId + ":LOCKS:" + lockName;
 
 	std::string command = std::string("DEL ") + key;
