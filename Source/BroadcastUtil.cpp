@@ -83,9 +83,18 @@ int BroadcastUtil::addSubscription(RedisConnection& conn, const char* channelNam
 	// add callback to list of callback for this channel
 	inst->myCallbacks[std::string(channelName)].insert(func);
 
-	// send a control command to workerthread, to subscribe to this channel
-//	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(), (COMMAND_DELIM + ADD_COMMAND + channelName + COMMAND_DELIM).c_str());
+	// send a control command to worker thread, to subscribe to this channel
 	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(), (ADD_COMMAND + channelName).c_str());
+}
+
+int BroadcastUtil::removeSubscription(RedisConnection& conn, const char* channelName) {
+	if (!BroadcastUtil::isRunning() || channelName == NULL || std::strlen(channelName) == 0) return -1;
+
+	// remove all callbacks for this channel
+	inst->myCallbacks[std::string(channelName)].clear();
+
+	// send a control command to worker thread, to unsubscribe from this channel
+	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(), (REMOVE_COMMAND + channelName).c_str());
 }
 
 int BroadcastUtil::publish(RedisConnection& conn, const char* channelName, const char* message) {
@@ -150,12 +159,13 @@ void* BroadcastUtil::workerThread(void * arg) {
 				// the command sender method need to worry about sending
 				// correct command
 				ControlCommand control = ControlCommand(payload);
-//				std::cerr << "CONTROL: |" << control.command << "|" << control.arg << "|" << std::endl;
+				std::cerr << "CONTROL: |" << control.command << "|" << control.arg << "|" << std::endl;
 				if (ADD_COMMAND == control.command) {
 					nextCommand = SUBSCRIBE + control.arg;
 //					std::cerr << "Adding subscription to channel: [" << control.arg << "]" << std::endl;
 				} else if (REMOVE_COMMAND == control.command) {
 					nextCommand =  UNSUBSCRIBE + control.arg;
+					std::cerr << "Removing subscriptions from channel: [" << control.arg << "]" << std::endl;
 				} else if (STOP_COMMAND == control.command) {
 					// well, here is the reason why we need to check for control command
 					inst->stop = true;

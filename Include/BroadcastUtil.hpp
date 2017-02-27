@@ -39,6 +39,7 @@ public:
 	static bool isRunning();
 	static int publish(RedisConnection& conn, const char* channelName, const char* message);
 	static int addSubscription(RedisConnection& conn, const char* channelName, callbackFunc);
+	static int removeSubscription(RedisConnection& conn, const char* channelName);
 
 protected:
 	std::string getControlChannel();
