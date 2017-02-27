@@ -9,6 +9,7 @@
 #define INCLUDE_INSTANCESUTIL_HPP_
 
 class RedisConnection;
+//typedef void (*callbackFunc)(const char*);
 
 /**
  * A utility class to provide primitive methods for implementing scalable application instances
@@ -26,6 +27,12 @@ public:
 
 	// get a new ID for a newly deploying instance of the application
 	static int getNewInstanceId(RedisConnection& conn, const char* appId);
+
+	// register a callback method for any new instance notification
+	static int registerInstanceUpCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
+
+	// register a callback method for any instance down notification
+	static int registerInstanceDownCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
 
 	// publish a node's address details
 	static int publishNodeDetails(RedisConnection& conn, const char* appId,

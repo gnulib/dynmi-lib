@@ -137,10 +137,10 @@ TEST(BroadcastUtilTest, controlDataMessage) {
 	MockRedisConnection myConn(NULL, 0);
 
 	// setup mock to expect command
-	std::string command_1 = std::string("SUBSCRIBE ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:"+ TEST_NODE_ID;
+	std::string control_channel = std::string(NAMESPACE_PREFIX) + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:" + TEST_NODE_ID;
+	std::string command_1 = std::string("SUBSCRIBE ") + control_channel;
 	std::string command_2 = "ADD_CHANNEL " + TEST_CHANNEL_NAME;
 	std::string command_3 = std::string("SUBSCRIBE ") + TEST_CHANNEL_NAME;
-	std::string control_channel = std::string(NAMESPACE_PREFIX) + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:" + TEST_NODE_ID;
 
 	// return connected when asked
 	EXPECT_CALL(*conn, isConnected())

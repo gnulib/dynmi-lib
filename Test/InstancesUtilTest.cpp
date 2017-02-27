@@ -27,6 +27,7 @@ public:
 	MockRedisConnection(const char* host, int port) : RedisConnection(host, port){};
 	MOCK_METHOD1(cmd, RedisResult(const char *));
 	MOCK_CONST_METHOD0(isConnected, bool());
+	MOCK_METHOD2(publish, RedisResult(const char *, const char *));
 };
 
 TEST(InstancesUtilTest, getNewInstanceIdNonIntegerResultType) {
@@ -124,8 +125,8 @@ TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
 	std::string command3 = std::string("SADD ") + NAMESPACE_PREFIX
 			+ ":" + TEST_APP_ID + ":INSTANCES " + TEST_NODE_ID;
 
-	std::string command4 = std::string("PUBLISH ") + NAMESPACE_PREFIX
-			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_UP " + TEST_NODE_ID;
+	std::string channelInstanceUp = std::string(NAMESPACE_PREFIX)
+			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_UP";
 	// expect following calls in sequence
 	{
 		InSequence dummy;
@@ -141,7 +142,7 @@ TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
 		EXPECT_CALL(conn, cmd(StrEq(command3.c_str())))
 		.Times(1)
 		.WillOnce(Return(getIntegerResult(1)));
-		EXPECT_CALL(conn, cmd(StrEq(command4.c_str())))
+		EXPECT_CALL(conn, publish(StrEq(channelInstanceUp.c_str()), StrEq(TEST_NODE_ID.c_str())))
 		.Times(1)
 		.WillOnce(Return(getIntegerResult(1)));
 	}
@@ -154,8 +155,8 @@ TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
 	// first publish node down to all active instances
-	std::string command1 = std::string("PUBLISH ") + NAMESPACE_PREFIX
-			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_DOWN " + TEST_NODE_ID;
+	std::string channelInstanceDown = std::string(NAMESPACE_PREFIX)
+			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_DOWN";
 	// then remove node's ID from set of active instances
 	std::string command2 = std::string("SREM ") + NAMESPACE_PREFIX
 			+ ":" + TEST_APP_ID + ":INSTANCES " + TEST_NODE_ID;
@@ -170,7 +171,7 @@ TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
 		EXPECT_CALL(conn, isConnected())
 		.Times(1)
 		.WillOnce(Return(true));
-		EXPECT_CALL(conn, cmd(StrEq(command1.c_str())))
+		EXPECT_CALL(conn, publish(StrEq(channelInstanceDown.c_str()), StrEq(TEST_NODE_ID.c_str())))
 		.Times(1)
 		.WillOnce(Return(getIntegerResult(1)));
 		EXPECT_CALL(conn, cmd(StrEq(command2.c_str())))

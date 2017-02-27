@@ -7,6 +7,7 @@
 
 
 #include "InstancesUtil.hpp"
+#include "BroadcastUtil.hpp"
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
 #include <string>
@@ -61,6 +62,34 @@ int InstancesUtil::getNewInstanceId(RedisConnection& conn, const char* appId) {
 	return InstancesUtil::incrCounter(conn, appId, "NODES");
 }
 
+std::string channelInstanceUp(const char * appId) {
+	return std::string(NAMESPACE_PREFIX)
+	+ ":" + appId + ":CHANNELS:INSTANCE_UP";
+}
+
+std::string channelInstanceDown(const char * appId) {
+	return std::string(NAMESPACE_PREFIX)
+	+ ":" + appId + ":CHANNELS:INSTANCE_DOWN";
+}
+
+/**
+ * register a callback method to be notified whenever a new instance for this application comes up
+ */
+int InstancesUtil::registerInstanceUpCallback(RedisConnection& conn,
+		const char* appId, callbackFunc func) {
+	if (!BroadcastUtil::isInitialized()) return -1;
+	return BroadcastUtil::addSubscription(conn, channelInstanceUp(appId).c_str(), func);
+}
+
+/**
+ * register a callback method to be notified whenever a instance for this application goes down
+ */
+int InstancesUtil::registerInstanceDownCallback(RedisConnection& conn,
+		const char* appId, callbackFunc func) {
+	if (!BroadcastUtil::isInitialized()) return -1;
+	return BroadcastUtil::addSubscription(conn, channelInstanceDown(appId).c_str(), func);
+}
+
 /**
  * first write node's address details as a hash set, with following key schema
  *   <NAMESPACE PREFIX>:<App ID>:INSTANCE:<Node ID>:ADDRESS (TTL set to specified value)
@@ -110,9 +139,7 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 		return -1;
 	}
 
-	std::string command3 = std::string("PUBLISH ") + NAMESPACE_PREFIX
-			+ ":" + appId + ":CHANNELS:INSTANCE_UP " + nodeIdStr;
-	res = conn.cmd(command3.c_str());
+	res = conn.publish(channelInstanceUp(appId).c_str(), nodeIdStr.c_str());
 	if(res.resultType() != INTEGER) {
 		// roll back if possible
 		if (res.resultType() != FAILED) {
@@ -143,9 +170,7 @@ int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
 	std::string nodeIdStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (nodeId)) )->str();
 #endif
 
-	std::string command1 = std::string("PUBLISH ") + NAMESPACE_PREFIX
-			+ ":" + appId + ":CHANNELS:INSTANCE_DOWN " + nodeIdStr;
-	RedisResult res = conn.cmd(command1.c_str());
+	RedisResult res = conn.publish(channelInstanceDown(appId).c_str(), nodeIdStr.c_str());
 	if(res.resultType() == ERROR || res.resultType() == FAILED) {
 		return -1;
 	}

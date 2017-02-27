@@ -8,6 +8,7 @@
 
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <iostream>
 #include <cstring>
 #include "RedisConnection.hpp"
@@ -42,6 +43,14 @@ void printResult(const RedisResult& res) {
 string payload;
 bool hasPayload = false;
 
+void myNewInstanceCallback(const char* nodeId) {
+	cerr << "NOTIFICATION: new instance [" << nodeId << "] for application started" << endl;
+}
+
+void myInstanceDownCallback(const char* nodeId) {
+	cerr << "NOTIFICATION: instance [" << nodeId << "] for application stopped" << endl;
+}
+
 void myCallback(const char* msg) {
 	cerr << "CALL BACK: " << msg << endl;
 	payload = string(msg);
@@ -67,6 +76,17 @@ int main(int argc, char **argv) {
 		if (!BroadcastUtil::initialize("Test-App", id, new RedisConnection(argv[1], atoi(argv[2])))) {
 			cout << "failed to initialize broadcast framework" << endl;
 			return -1;
+//		} else {
+//			cout << "waiting 1 second for subscriber's worker thread to initialize" << endl;
+//			sleep(1);
+		}
+		if (InstancesUtil::registerInstanceUpCallback(conn, "Test-App", myNewInstanceCallback) == -1) {
+			cout << "failed to register callback for new instance notifications" << endl;
+			return -1;
+		}
+		if (InstancesUtil::registerInstanceDownCallback(conn, "Test-App", myInstanceDownCallback) == -1) {
+			cout << "failed to register callback for instance down notifications" << endl;
+			return -1;
 		}
 	}
 	bool done=false;
@@ -87,6 +107,13 @@ int main(int argc, char **argv) {
 					cout << "Failed to add subscription to channel [" << message+strlen("subscribe ") << "]" << endl;
 				} else {
 					cout << "Subscribed to channel [" << message+strlen("subscribe ") << "]" << endl;
+				}
+				continue;
+			} else if (strstr(message, "unsubscribe") == message || strstr(message, "UNSUBSCRIBE") == message) {
+				if (BroadcastUtil::removeSubscription(conn, message+strlen("unsubscribe ")) != 1) {
+					cout << "Failed to remove subscription from channel [" << message+strlen("unsubscribe ") << "]" << endl;
+				} else {
+					cout << "Unsubscribed from channel [" << message+strlen("unsubscribe ") << "]" << endl;
 				}
 				continue;
 			} else if (strstr(message, "publish") == message || strstr(message, "PUBLISH") == message) {

@@ -54,6 +54,8 @@ bool BroadcastUtil::initialize(const char * appId, const char* nodeId, RedisConn
 				inst->worker = new pthread_t();
 				if(pthread_create(inst->worker, NULL, &workerThread, NULL) == 0) {
 					initialized = true;
+					// wait 1 second for worker thread to initialize
+					sleep(1);
 				} else {
 					delete BroadcastUtil::inst;
 				}
@@ -159,13 +161,13 @@ void* BroadcastUtil::workerThread(void * arg) {
 				// the command sender method need to worry about sending
 				// correct command
 				ControlCommand control = ControlCommand(payload);
-				std::cerr << "CONTROL: |" << control.command << "|" << control.arg << "|" << std::endl;
+//				std::cerr << "CONTROL: |" << control.command << "|" << control.arg << "|" << std::endl;
 				if (ADD_COMMAND == control.command) {
 					nextCommand = SUBSCRIBE + control.arg;
 //					std::cerr << "Adding subscription to channel: [" << control.arg << "]" << std::endl;
 				} else if (REMOVE_COMMAND == control.command) {
 					nextCommand =  UNSUBSCRIBE + control.arg;
-					std::cerr << "Removing subscriptions from channel: [" << control.arg << "]" << std::endl;
+//					std::cerr << "Removing subscriptions from channel: [" << control.arg << "]" << std::endl;
 				} else if (STOP_COMMAND == control.command) {
 					// well, here is the reason why we need to check for control command
 					inst->stop = true;
