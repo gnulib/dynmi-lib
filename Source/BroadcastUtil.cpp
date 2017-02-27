@@ -35,12 +35,12 @@ bool BroadcastUtil::initialize(const char * appId, RedisConnection * workerConn)
 				inst = new BroadcastUtil();
 				inst->stop = false;
 				inst->appId = appId;
-				inst->controlChannel = std::string(NAMESPACE_PREFIX) + ":" + inst->appId + CONTROL + inst->suffix;
 #if __cplusplus >= 201103L
 				inst->suffix = std::to_string(std::rand());
 #else
 				inst->suffix = static_cast<std::ostringstream*>( &(std::ostringstream() << (std::rand())) )->str();
 #endif
+				inst->controlChannel = std::string(NAMESPACE_PREFIX) + ":" + inst->appId + CONTROL + inst->suffix;
 				inst->workerConn = workerConn;
 				inst->worker = new pthread_t();
 				if(pthread_create(inst->worker, NULL, &workerThread, NULL) == 0) {

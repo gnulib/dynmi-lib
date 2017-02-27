@@ -51,7 +51,7 @@ TEST(BroadcastUtilTest, initializationSuccess) {
 
 	// setup mock to expect command
 	std::string command_1 = std::string("SUBSCRIBE ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL";
-	std::string stop_command = std::string("PUBLISH ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL";
+	std::string stop_command = std::string("PUBLISH ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:.+ STOP";
 	EXPECT_CALL(*workerConn, isConnected())
 		.Times(1)
 		.WillOnce(Return(true));
@@ -62,7 +62,7 @@ TEST(BroadcastUtilTest, initializationSuccess) {
 		// and return back a blank reply
 		.WillOnce(Return(RedisResult()));
 
-	EXPECT_CALL(myConn, cmd(StartsWith(stop_command.c_str())))
+	EXPECT_CALL(myConn, cmd(MatchesRegex(stop_command.c_str())))
 		// one time
 		.Times(1)
 		// and return back an integer reply
@@ -90,7 +90,7 @@ TEST(BroadcastUtilTest, controlIncorrectChannel) {
 	// setup mock to expect command
 	std::string command_1 = std::string("SUBSCRIBE ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:";
 	std::string command_2 = std::string("SUBSCRIBE ") + TEST_CHANNEL_NAME;
-	std::string stop_command = std::string("PUBLISH ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL";
+	std::string stop_command = std::string("PUBLISH ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:.+ STOP";
 
 	EXPECT_CALL(*conn, isConnected())
 	.Times(1)
@@ -108,7 +108,7 @@ TEST(BroadcastUtilTest, controlIncorrectChannel) {
 		// one time
 		.Times(0);
 
-	EXPECT_CALL(myConn, cmd(StartsWith(stop_command.c_str())))
+	EXPECT_CALL(myConn, cmd(MatchesRegex(stop_command.c_str())))
 		// one time
 		.Times(1)
 		// and return back an integer reply
