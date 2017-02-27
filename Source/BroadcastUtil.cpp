@@ -8,6 +8,7 @@
 #include "BroadcastUtil.hpp"
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
+#include "ChannelMessage.hpp"
 #include <cstdlib>
 #include <unistd.h>
 #include <sstream>
@@ -21,6 +22,7 @@ BroadcastUtil::~BroadcastUtil() {
 	stop = true;
 	pthread_join(*worker, NULL);
 	delete workerConn;
+	initialized = false;
 }
 bool BroadcastUtil::initialize(const char * appId, RedisConnection * workerConn) {
 	if (!initialized) {
@@ -33,6 +35,7 @@ bool BroadcastUtil::initialize(const char * appId, RedisConnection * workerConn)
 				inst = new BroadcastUtil();
 				inst->stop = false;
 				inst->appId = appId;
+				inst->controlChannel = std::string(NAMESPACE_PREFIX) + ":" + inst->appId + CONTROL + inst->suffix;
 #if __cplusplus >= 201103L
 				inst->suffix = std::to_string(std::rand());
 #else
@@ -61,30 +64,59 @@ bool BroadcastUtil::initialize(const char * appId, RedisConnection * workerConn)
 	return initialized;
 }
 
+std::string BroadcastUtil::getControlChannel() {
+	return controlChannel;
+}
+
 void BroadcastUtil::stopAll() {
 	if (!BroadcastUtil::isInitialized()) return;
 	// TODO: send control command to stop
 	delete BroadcastUtil::inst;
 	BroadcastUtil::inst = NULL;
 }
+
 bool BroadcastUtil::isRunning() {
-	return !stop;
+	return inst && !inst->stop;
 }
 
 void* BroadcastUtil::workerThread(void * arg) {
-	static const std::string CONTROL = ":CHANNELS:CONTROL:";
-	static const std::string MESSAGE = ":CHANNELS:MESSAGE:";
-	static const std::string SUBSCRIBE = "SUBSCRIBE ";
-	static const std::string NAMESPACE = std::string(NAMESPACE_PREFIX) + ":";
+	static const std::string BLOCK = "";
 	if (BroadcastUtil::inst == NULL || !BroadcastUtil::inst->isInitialized()) {
 		return NULL;
 	}
 	// start by subscribing the control channel
-	RedisResult res = BroadcastUtil::inst->workerConn->cmd((SUBSCRIBE + NAMESPACE + inst->appId + CONTROL).c_str());
+	std::string nextCommand = SUBSCRIBE + inst->controlChannel;
 	while (inst->isRunning()) {
-		// process result
-
-		sleep(1); // TODO: change this
+		// send nextCommand and block for message
+		ChannelMessage message = ChannelMessage::from(BroadcastUtil::inst->workerConn->cmd(nextCommand.c_str()));
+		const std::string& channel = message.getChannelName();
+		const std::string& payload = message.getMessage();
+		if (message.getType() == channelMessage::DATA) {
+			// process any control messages...
+			if (channel == inst->controlChannel) {
+				// TODO do we really want to check each control
+				// message below? or should we just simply pass through
+				// "as is", so that its more flexible for future, only
+				// the command sender method need to worry about sending
+				// correct command
+				if (payload.find(ADD_COMMAND) == 0) {
+					nextCommand = SUBSCRIBE + payload.substr(ADD_COMMAND.length());
+				} else if (payload.find(REMOVE_COMMAND) == 0) {
+					nextCommand = UNSUBSCRIBE + payload.substr(REMOVE_COMMAND.length());
+				} else if (payload.find(STOP_COMMAND) == 0) {
+					nextCommand = UNSUBSCRIBE + payload.substr(STOP_COMMAND.length());
+				} else {
+					nextCommand = BLOCK;
+				}
+			} else {
+				// notify all callbacks registered for this channel
+				// TODO
+				nextCommand = BLOCK;
+			}
+		} else {
+			// just wait for next data message
+			nextCommand = BLOCK;
+		}
 	}
 	return NULL;
 }

@@ -12,6 +12,14 @@
 #include <pthread.h>
 class RedisConnection;
 
+static const std::string CONTROL = ":CHANNELS:CONTROL:";
+static const std::string MESSAGE = ":CHANNELS:MESSAGE:";
+static const std::string SUBSCRIBE = "SUBSCRIBE ";
+static const std::string UNSUBSCRIBE = "UNSUBSCRIBE ";
+static std::string ADD_COMMAND = "ADD_CHANNEL ";
+static std::string REMOVE_COMMAND = "REMOVE_CHANNEL ";
+static std::string STOP_COMMAND = "STOP_CHANNEL ";
+
 class BroadcastUtil {
 private:
 	BroadcastUtil(){stop = true; worker = NULL; workerConn = NULL;}
@@ -22,9 +30,11 @@ public:
 	// we'll inject the RedisConnection instance to be used by worker,
 	// for testability purpose
 	static bool initialize(const char * appId, RedisConnection * workerConn);
-	static BroadcastUtil& instance(const char* appId);
 	static void stopAll();
-	bool isRunning();
+	static bool isRunning();
+
+protected:
+	std::string getControlChannel();
 
 private:
 	static void* workerThread(void *);
@@ -37,6 +47,7 @@ private:
 	RedisConnection* workerConn;
 	std::string appId;
 	std::string suffix;
+	std::string controlChannel;
 	bool stop;
 };
 

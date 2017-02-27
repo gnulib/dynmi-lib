@@ -75,4 +75,12 @@ RedisResult getArrayResult(int size, redisReply** values) {
 	return res;
 }
 
+RedisResult getControlCommand(const char* channel, const char* cmd) {
+	redisReply** values = new redisReply*[3];
+	values[0] = getStringReply("message");
+	values[1] = getStringReply(channel);
+	values[2] = getStringReply(cmd);
+	return getArrayResult(3, values);
+}
+
 #endif /* TEST_REDISREPLYFIXTURES_HPP_ */
