@@ -45,9 +45,7 @@ TEST(BroadcastUtilTest, initializationSuccess) {
 		.WillOnce(Return(RedisResult()));
 
 	// verify that BroadcastUtil intializes
-	std::cout << "Initialization started" << std::endl;
 	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), conn));
-	std::cout << "Initialization complete" << std::endl;
 	BroadcastUtil::stopAll();
 }
 
