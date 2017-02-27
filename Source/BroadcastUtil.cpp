@@ -84,13 +84,12 @@ int BroadcastUtil::addSubscription(RedisConnection& conn, const char* channelNam
 	inst->myCallbacks[std::string(channelName)].insert(func);
 
 	// send a control command to workerthread, to subscribe to this channel
-	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(), (COMMAND_DELIM + ADD_COMMAND + channelName + COMMAND_DELIM).c_str());
+//	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(), (COMMAND_DELIM + ADD_COMMAND + channelName + COMMAND_DELIM).c_str());
+	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(), (ADD_COMMAND + channelName).c_str());
 }
 
 int BroadcastUtil::publish(RedisConnection& conn, const char* channelName, const char* message) {
-	std::string command = PUBLISH + channelName + " " + message;
-	std::cerr << "##### sending command: " << command << std::endl;
-	RedisResult res = conn.cmd(command.c_str());
+	RedisResult res = conn.publish(channelName, message);
 	if (res.resultType() == ERROR)
 		std::cerr << "ERROR: " << res.errMsg() << std::endl;
 	return res.intResult();

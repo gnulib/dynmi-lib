@@ -17,7 +17,6 @@ class RedisConnection;
 static const std::string CONTROL = ":CHANNELS:CONTROL:";
 static const std::string MESSAGE = ":CHANNELS:MESSAGE:";
 static const std::string SUBSCRIBE = "SUBSCRIBE ";
-static const std::string PUBLISH = "PUBLISH ";
 static const std::string UNSUBSCRIBE = "UNSUBSCRIBE ";
 static std::string COMMAND_DELIM = "\"";
 static std::string ADD_COMMAND = "ADD_CHANNEL ";

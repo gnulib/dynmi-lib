@@ -45,7 +45,7 @@ bool hasPayload = false;
 void myCallback(const char* msg) {
 	cerr << "CALL BACK: " << msg << endl;
 	payload = string(msg);
-	hasPayload = true;
+//	hasPayload = true;
 }
 
 int main(int argc, char **argv) {
@@ -83,7 +83,6 @@ int main(int argc, char **argv) {
 			cout << "[ID:" << id << "] CMD> ";
 			std::cin.getline(message,1023);
 			if (strstr(message, "subscribe") == message || strstr(message, "SUBSCRIBE") == message) {
-//				isSubscribed = true;
 				if (BroadcastUtil::addSubscription(conn, message+strlen("subscribe "), myCallback) != 1) {
 					cout << "Failed to add subscription to channel [" << message+strlen("subscribe ") << "]" << endl;
 				} else {
@@ -91,12 +90,12 @@ int main(int argc, char **argv) {
 				}
 				continue;
 			} else if (strstr(message, "publish") == message || strstr(message, "PUBLISH") == message) {
-					string command = string(message);
-					size_t channel = command.find(" ");
-					size_t payload = command.find(" ", channel+1);
-					cout << "publishing on channel [" << command.substr(channel+1, payload-channel) << "] : " << command.substr(payload+1) << endl;
-					BroadcastUtil::publish(conn, command.substr(channel+1, payload-channel).c_str(), command.substr(payload+1).c_str());
-					continue;
+				string command = string(message);
+				size_t channel = command.find(" ");
+				size_t payload = command.find(" ", channel+1);
+				cout << "publishing on channel [" << command.substr(channel+1, payload-channel-1) << "] : " << command.substr(payload+1) << endl;
+				BroadcastUtil::publish(conn, command.substr(channel+1, payload-channel-1).c_str(), command.substr(payload+1).c_str());
+				continue;
 			} else if (strstr(message, "quit") == message || strstr(message, "QUIT") == message) {
 				done = true;
 				continue;

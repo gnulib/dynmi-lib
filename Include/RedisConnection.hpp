@@ -31,6 +31,9 @@ public:
 	// a generic method to execute redis commands
 	virtual RedisResult cmd(const char *);
 
+	// a method to support variable length strings in argument
+	virtual RedisResult publish(const char * channel, const char* message);
+
 	// get connection status
 	virtual bool isConnected() const;
 
