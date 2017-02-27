@@ -15,10 +15,11 @@ class RedisConnection;
 static const std::string CONTROL = ":CHANNELS:CONTROL:";
 static const std::string MESSAGE = ":CHANNELS:MESSAGE:";
 static const std::string SUBSCRIBE = "SUBSCRIBE ";
+static const std::string PUBLISH = "PUBLISH ";
 static const std::string UNSUBSCRIBE = "UNSUBSCRIBE ";
 static std::string ADD_COMMAND = "ADD_CHANNEL ";
 static std::string REMOVE_COMMAND = "REMOVE_CHANNEL ";
-static std::string STOP_COMMAND = "STOP_CHANNEL ";
+static std::string STOP_COMMAND = "STOP";
 
 class BroadcastUtil {
 private:
@@ -30,8 +31,9 @@ public:
 	// we'll inject the RedisConnection instance to be used by worker,
 	// for testability purpose
 	static bool initialize(const char * appId, RedisConnection * workerConn);
-	static void stopAll();
+	static void stopAll(RedisConnection& conn);
 	static bool isRunning();
+	static int publish(RedisConnection& conn, const char* channelName, const char* message);
 
 protected:
 	std::string getControlChannel();

@@ -68,9 +68,13 @@ std::string BroadcastUtil::getControlChannel() {
 	return controlChannel;
 }
 
-void BroadcastUtil::stopAll() {
-	if (!BroadcastUtil::isInitialized()) return;
-	// TODO: send control command to stop
+int BroadcastUtil::publish(RedisConnection& conn, const char* channelName, const char* message) {
+	std::string command = PUBLISH + channelName + " " + message;
+	return conn.cmd(command.c_str()).intResult();
+}
+void BroadcastUtil::stopAll(RedisConnection& conn) {
+	if (!BroadcastUtil::isRunning()) return;
+	BroadcastUtil::publish(conn, inst->controlChannel.c_str(), STOP_COMMAND.c_str());
 	delete BroadcastUtil::inst;
 	BroadcastUtil::inst = NULL;
 }
