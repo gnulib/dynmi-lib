@@ -13,6 +13,7 @@
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
 #include "InstancesUtil.hpp"
+#include "BroadcastUtil.hpp"
 
 using namespace std;
 
@@ -38,6 +39,15 @@ void printResult(const RedisResult& res) {
 
 }
 
+string payload;
+bool hasPayload = false;
+
+void myCallback(const char* msg) {
+	cerr << "CALL BACK: " << msg << endl;
+	payload = string(msg);
+	hasPayload = true;
+}
+
 int main(int argc, char **argv) {
 	cout << "total args: " << argc << endl;
 	for (int i =0; i <argc; i++) {
@@ -54,6 +64,10 @@ int main(int argc, char **argv) {
 		id = InstancesUtil::getNewInstanceId(conn, "Test-App");
 		cout << "my instance ID: " << id << endl;
 		InstancesUtil::publishNodeDetails(conn, "Test-App",id, "localhost", 2039, 60);
+		if (!BroadcastUtil::initialize("Test-App", id, new RedisConnection(argv[1], atoi(argv[2])))) {
+			cout << "failed to initialize broadcast framework" << endl;
+			return -1;
+		}
 	}
 	bool done=false;
 	bool isSubscribed = false;
@@ -62,10 +76,27 @@ int main(int argc, char **argv) {
 		if (isSubscribed) {
 			message[0] = 0;
 		} else {
+			if (hasPayload) {
+				cerr << "CALL BACK: " << payload << endl;
+				hasPayload = false;
+			}
 			cout << "[ID:" << id << "] CMD> ";
 			std::cin.getline(message,1023);
 			if (strstr(message, "subscribe") == message || strstr(message, "SUBSCRIBE") == message) {
-				isSubscribed = true;
+//				isSubscribed = true;
+				if (BroadcastUtil::addSubscription(conn, message+strlen("subscribe "), myCallback) != 1) {
+					cout << "Failed to add subscription to channel [" << message+strlen("subscribe ") << "]" << endl;
+				} else {
+					cout << "Subscribed to channel [" << message+strlen("subscribe ") << "]" << endl;
+				}
+				continue;
+			} else if (strstr(message, "publish") == message || strstr(message, "PUBLISH") == message) {
+					string command = string(message);
+					size_t channel = command.find(" ");
+					size_t payload = command.find(" ", channel+1);
+					cout << "publishing on channel [" << command.substr(channel+1, payload-channel) << "] : " << command.substr(payload+1) << endl;
+					BroadcastUtil::publish(conn, command.substr(channel+1, payload-channel).c_str(), command.substr(payload+1).c_str());
+					continue;
 			} else if (strstr(message, "quit") == message || strstr(message, "QUIT") == message) {
 				done = true;
 				continue;
@@ -96,6 +127,7 @@ int main(int argc, char **argv) {
 			printResult(res);
 		}
 	}
+	BroadcastUtil::stopAll(conn);
 	if (InstancesUtil::removeNodeDetails(conn, "Test-App",id) == 0) {
 		cout << "gracefully removed instance from system" << endl;
 	} else {
