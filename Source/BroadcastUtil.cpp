@@ -25,16 +25,23 @@ BroadcastUtil::~BroadcastUtil() {
 	delete workerConn;
 	initialized = false;
 }
-bool BroadcastUtil::initialize(const char * appId, int nodeId, RedisConnection * workerConn) {
+
+bool BroadcastUtil::initializeId(const char * appId, int nodeId,
+		RedisConnection * workerConn) {
 #if __cplusplus >= 201103L
 	return BroadcastUtil::initialize(appId, std::to_string(nodeId), workerConn);
 #else
-	return BroadcastUtil::initialize(appId, static_cast<std::ostringstream*>( &(std::ostringstream() << (nodeId)) )->str().c_str(), workerConn);
+	return BroadcastUtil::initialize(appId,
+			static_cast<std::ostringstream*>(&(std::ostringstream() << (nodeId)))->str().c_str(),
+			workerConn);
 #endif
 }
-bool BroadcastUtil::initialize(const char * appId, const char* nodeId, RedisConnection * workerConn) {
+
+bool BroadcastUtil::initialize(const char * appId, const char* salt,
+		RedisConnection * workerConn) {
 	if (!initialized) {
-		if (pthread_mutex_init(&BroadcastUtil::mtx, NULL) != 0) return false;
+		if (pthread_mutex_init(&BroadcastUtil::mtx, NULL) != 0)
+			return false;
 		pthread_mutex_lock(&BroadcastUtil::mtx);
 		try {
 			// check once more, after we get lock, in case someone else had already initialized
@@ -43,16 +50,24 @@ bool BroadcastUtil::initialize(const char * appId, const char* nodeId, RedisConn
 				inst = new BroadcastUtil();
 				inst->stop = false;
 				inst->appId = appId;
-//#if __cplusplus >= 201103L
-//				inst->suffix = std::to_string(std::rand());
-//#else
-//				inst->suffix = static_cast<std::ostringstream*>( &(std::ostringstream() << (std::rand())) )->str();
-//#endif
-				inst->suffix = std::string(nodeId);
-				inst->controlChannel = std::string(NAMESPACE_PREFIX) + ":" + inst->appId + CONTROL + inst->suffix;
+				if (salt == NULL) {
+					// use current time as random salt for control channel suffix
+#if __cplusplus >= 201103L
+					inst->suffix = std::to_string(std::time(0));
+#else
+					inst->suffix =
+							static_cast<std::ostringstream*>(&(std::ostringstream()
+									<< (std::time(0))))->str();
+#endif
+				} else {
+					inst->suffix = std::string(salt);
+				}
+				inst->controlChannel = std::string(NAMESPACE_PREFIX) + ":"
+						+ inst->appId + CONTROL + inst->suffix;
 				inst->workerConn = workerConn;
 				inst->worker = new pthread_t();
-				if(pthread_create(inst->worker, NULL, &workerThread, NULL) == 0) {
+				if (pthread_create(inst->worker, NULL, &workerThread, NULL)
+						== 0) {
 					initialized = true;
 					// wait 1 second for worker thread to initialize
 					sleep(1);
@@ -65,7 +80,8 @@ bool BroadcastUtil::initialize(const char * appId, const char* nodeId, RedisConn
 		} catch (...) {
 			// failed to initialize
 			initialized = false;
-			if (inst) delete inst;
+			if (inst)
+				delete inst;
 			inst = NULL;
 		}
 		pthread_mutex_unlock(&BroadcastUtil::mtx);
@@ -79,35 +95,46 @@ std::string BroadcastUtil::getControlChannel() {
 	return controlChannel;
 }
 
-int BroadcastUtil::addSubscription(RedisConnection& conn, const char* channelName, callbackFunc func) {
-	if (!BroadcastUtil::isRunning() || channelName == NULL || std::strlen(channelName) == 0) return -1;
+int BroadcastUtil::addSubscription(RedisConnection& conn,
+		const char* channelName, callbackFunc func) {
+	if (!BroadcastUtil::isRunning() || channelName == NULL
+			|| std::strlen(channelName) == 0)
+		return -1;
 
 	// add callback to list of callback for this channel
 	inst->myCallbacks[std::string(channelName)].insert(func);
 
 	// send a control command to worker thread, to subscribe to this channel
-	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(), (ADD_COMMAND + channelName).c_str());
+	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(),
+			(ADD_COMMAND + channelName).c_str());
 }
 
-int BroadcastUtil::removeSubscription(RedisConnection& conn, const char* channelName) {
-	if (!BroadcastUtil::isRunning() || channelName == NULL || std::strlen(channelName) == 0) return -1;
+int BroadcastUtil::removeSubscription(RedisConnection& conn,
+		const char* channelName) {
+	if (!BroadcastUtil::isRunning() || channelName == NULL
+			|| std::strlen(channelName) == 0)
+		return -1;
 
 	// remove all callbacks for this channel
 	inst->myCallbacks[std::string(channelName)].clear();
 
 	// send a control command to worker thread, to unsubscribe from this channel
-	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(), (REMOVE_COMMAND + channelName).c_str());
+	return BroadcastUtil::publish(conn, inst->controlChannel.c_str(),
+			(REMOVE_COMMAND + channelName).c_str());
 }
 
-int BroadcastUtil::publish(RedisConnection& conn, const char* channelName, const char* message) {
+int BroadcastUtil::publish(RedisConnection& conn, const char* channelName,
+		const char* message) {
 	RedisResult res = conn.publish(channelName, message);
 	if (res.resultType() == ERROR)
 		std::cerr << "ERROR: " << res.errMsg() << std::endl;
 	return res.intResult();
 }
 void BroadcastUtil::stopAll(RedisConnection& conn) {
-	if (!BroadcastUtil::isRunning()) return;
-	BroadcastUtil::publish(conn, inst->controlChannel.c_str(), STOP_COMMAND.c_str());
+	if (!BroadcastUtil::isRunning())
+		return;
+	BroadcastUtil::publish(conn, inst->controlChannel.c_str(),
+			STOP_COMMAND.c_str());
 	delete BroadcastUtil::inst;
 	BroadcastUtil::inst = NULL;
 }
@@ -119,7 +146,8 @@ bool BroadcastUtil::isRunning() {
 void BroadcastUtil::notifyCallbacks(std::string channel, std::string payload) {
 	// should this be a separate thread???
 	std::set<callbackFunc> callbacks = inst->myCallbacks[channel];
-	for (std::set<callbackFunc>::iterator callback = callbacks.begin(); callback != callbacks.end(); ++callback) {
+	for (std::set<callbackFunc>::iterator callback = callbacks.begin();
+			callback != callbacks.end(); ++callback) {
 		(*callback)(payload.c_str());
 	}
 }
@@ -133,7 +161,7 @@ public:
 		if (spacePos == std::string::npos) {
 			command = payload.substr(0, payload.length());
 		} else {
-			command = payload.substr(0, spacePos+1);
+			command = payload.substr(0, spacePos + 1);
 			arg = payload.substr(spacePos + 1, payload.length() - spacePos - 1);
 		}
 	}
@@ -148,7 +176,8 @@ void* BroadcastUtil::workerThread(void * arg) {
 	std::string nextCommand = SUBSCRIBE + inst->controlChannel;
 	while (inst->isRunning()) {
 		// send nextCommand and block for message
-		ChannelMessage message = ChannelMessage::from(BroadcastUtil::inst->workerConn->cmd(nextCommand.c_str()));
+		ChannelMessage message = ChannelMessage::from(
+				BroadcastUtil::inst->workerConn->cmd(nextCommand.c_str()));
 		const std::string& channel = message.getChannelName();
 		const std::string& payload = message.getMessage();
 //		std::cerr << "CH[" << channel << "]:" << payload << ":" << std::endl;
@@ -166,7 +195,7 @@ void* BroadcastUtil::workerThread(void * arg) {
 					nextCommand = SUBSCRIBE + control.arg;
 //					std::cerr << "Adding subscription to channel: [" << control.arg << "]" << std::endl;
 				} else if (REMOVE_COMMAND == control.command) {
-					nextCommand =  UNSUBSCRIBE + control.arg;
+					nextCommand = UNSUBSCRIBE + control.arg;
 //					std::cerr << "Removing subscriptions from channel: [" << control.arg << "]" << std::endl;
 				} else if (STOP_COMMAND == control.command) {
 					// well, here is the reason why we need to check for control command

@@ -34,7 +34,7 @@ public:
 	// we'll inject the RedisConnection instance to be used by worker,
 	// for testability purpose
 	static bool initialize(const char * appId, const char* nodeId, RedisConnection * workerConn);
-	static bool initialize(const char * appId, int nodeId, RedisConnection * workerConn);
+	static bool initializeId(const char * appId, int nodeId, RedisConnection * workerConn);
 	static void stopAll(RedisConnection& conn);
 	static bool isRunning();
 	static int publish(RedisConnection& conn, const char* channelName, const char* message);

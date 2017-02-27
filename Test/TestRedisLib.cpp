@@ -70,22 +70,25 @@ int main(int argc, char **argv) {
 		cout << "failed to connect." << endl;
 		return -1;
 	} else {
-		id = InstancesUtil::getNewInstanceId(conn, "Test-App");
-		cout << "my instance ID: " << id << endl;
-		InstancesUtil::publishNodeDetails(conn, "Test-App",id, "localhost", 2039, 60);
-		if (!BroadcastUtil::initialize("Test-App", id, new RedisConnection(argv[1], atoi(argv[2])))) {
+		if (!BroadcastUtil::initialize("Test-App", NULL, new RedisConnection(argv[1], atoi(argv[2])))) {
 			cout << "failed to initialize broadcast framework" << endl;
 			return -1;
-//		} else {
-//			cout << "waiting 1 second for subscriber's worker thread to initialize" << endl;
-//			sleep(1);
 		}
+		id = InstancesUtil::getNewInstanceId(conn, "Test-App");
+		cout << "my instance ID: " << id << endl;
 		if (InstancesUtil::registerInstanceUpCallback(conn, "Test-App", myNewInstanceCallback) == -1) {
+			BroadcastUtil::stopAll(conn);
 			cout << "failed to register callback for new instance notifications" << endl;
 			return -1;
 		}
 		if (InstancesUtil::registerInstanceDownCallback(conn, "Test-App", myInstanceDownCallback) == -1) {
+			BroadcastUtil::stopAll(conn);
 			cout << "failed to register callback for instance down notifications" << endl;
+			return -1;
+		}
+		if (InstancesUtil::publishNodeDetails(conn, "Test-App",id, "localhost", 2039, 60) == -1) {
+			BroadcastUtil::stopAll(conn);
+			cout << "failed to publish instance details" << endl;
 			return -1;
 		}
 	}
@@ -153,11 +156,11 @@ int main(int argc, char **argv) {
 			printResult(res);
 		}
 	}
-	BroadcastUtil::stopAll(conn);
 	if (InstancesUtil::removeNodeDetails(conn, "Test-App",id) == 0) {
 		cout << "gracefully removed instance from system" << endl;
 	} else {
 		cout << "failed to remove instance from system" << endl;
 	}
+	BroadcastUtil::stopAll(conn);
     return 0;
 }
