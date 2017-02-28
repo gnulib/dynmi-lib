@@ -12,7 +12,9 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <sstream>
+#include <ctime>
 #include <string>
+#include <cstring>
 #include <iostream>
 
 BroadcastUtil* BroadcastUtil::inst = NULL;

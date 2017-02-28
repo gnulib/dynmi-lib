@@ -111,7 +111,7 @@ TEST(BroadcastUtilTest, controlIncorrectChannel) {
 				(std::string("ADD_CHANNEL ") + TEST_CHANNEL_NAME).c_str())));
 
 	EXPECT_CALL(*conn, cmd(StrEq(command_2.c_str())))
-		// one time
+		// should never be called
 		.Times(0);
 
 	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))

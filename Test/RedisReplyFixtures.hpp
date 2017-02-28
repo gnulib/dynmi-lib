@@ -18,7 +18,7 @@ const int TEST_INTEGER_VALUE = 102938475;
 redisReply* getStringReply(const char * value) {
 	redisReply* r = new redisReply;
 	r->type = REDIS_REPLY_STRING;
-	r->str = new char[strlen(value)];
+	r->str = new char[strlen(value)+1];
 	r->len = strlen(value);
 	strcpy(r->str, value);
 	return r;
@@ -45,7 +45,7 @@ redisReply* getArrayReply(int size, redisReply** values) {
 redisReply* getErrorReply() {
 	redisReply* r = new redisReply();
 	r->type = REDIS_REPLY_ERROR;
-	r->str = new char[strlen(TEST_STRING_ERR)];
+	r->str = new char[strlen(TEST_STRING_ERR)+1];
 	r->len = strlen(TEST_STRING_ERR);
 	strcpy(r->str, TEST_STRING_ERR);
 	return r;
