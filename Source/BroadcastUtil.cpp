@@ -28,7 +28,7 @@ BroadcastUtil::~BroadcastUtil() {
 	initialized = false;
 }
 
-bool BroadcastUtil::initializeId(const char * appId, int nodeId,
+bool BroadcastUtil::initializeWithId(const char * appId, int nodeId,
 		RedisConnection * workerConn) {
 #if __cplusplus >= 201103L
 	return BroadcastUtil::initialize(appId, std::to_string(nodeId), workerConn);

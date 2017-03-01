@@ -35,7 +35,7 @@ public:
 	static bool initialize(const char * appId, const char* uniqueId, RedisConnection * workerConn);
 
 	// another way to initialize the library where instance's node ID is used as uniqueId
-	static bool initializeId(const char * appId, int nodeId, RedisConnection * workerConn);
+	static bool initializeWithId(const char * appId, int nodeId, RedisConnection * workerConn);
 
 	// get initialization status
 	static bool isInitialized() { return initialized;}

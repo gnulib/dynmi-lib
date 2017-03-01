@@ -1,5 +1,5 @@
 /*
- * TestRedisLib.cpp
+ * TestApp.cpp
  *
  *  Created on: Feb 21, 2017
  *      Author: bhadoria
@@ -11,12 +11,15 @@
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
+#include <sstream>
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
 #include "InstancesUtil.hpp"
 #include "BroadcastUtil.hpp"
 
 using namespace std;
+
+int myNodeId;
 
 void printResult(const RedisResult& res) {
 	switch(res.resultType()) {
@@ -44,6 +47,14 @@ string payload;
 bool hasPayload = false;
 
 void myNewInstanceCallback(const char* nodeId) {
+	// skip if notification is about this instance
+#if __cplusplus >= 201103L
+	int id = stol(nodeId);
+#else
+	int id;
+	istringstream(nodeId) >> id;
+#endif
+	if (id == myNodeId) return ;
 	cerr << "NOTIFICATION: new instance [" << nodeId << "] for application started" << endl;
 }
 
@@ -62,20 +73,23 @@ int main(int argc, char **argv) {
 	for (int i =0; i <argc; i++) {
 		cout << i << ": " << argv[i] << endl;
 	}
+	if (argc != 3) {
+		cout << "Usage: " << argv[0] << "<redis host> <redis port>" << endl;
+		return -1;
+	}
 	cout << "connecting to \"" << argv[1] << ":" << argv[2] << "\"" << endl;
 
 	RedisConnection conn(argv[1], atoi(argv[2]));
-	int id;
 	if (!conn.isConnected()) {
 		cout << "failed to connect." << endl;
 		return -1;
 	} else {
-		if (!BroadcastUtil::initialize("Test-App", NULL, new RedisConnection(argv[1], atoi(argv[2])))) {
+		myNodeId = InstancesUtil::getNewInstanceId(conn, "Test-App");
+		cout << "my instance ID: " << myNodeId << endl;
+		if (!BroadcastUtil::initializeWithId("Test-App", myNodeId, new RedisConnection(argv[1], atoi(argv[2])))) {
 			cout << "failed to initialize broadcast framework" << endl;
 			return -1;
 		}
-		id = InstancesUtil::getNewInstanceId(conn, "Test-App");
-		cout << "my instance ID: " << id << endl;
 		if (InstancesUtil::registerInstanceUpCallback(conn, "Test-App", myNewInstanceCallback) == -1) {
 			BroadcastUtil::stopAll(conn);
 			cout << "failed to register callback for new instance notifications" << endl;
@@ -86,7 +100,7 @@ int main(int argc, char **argv) {
 			cout << "failed to register callback for instance down notifications" << endl;
 			return -1;
 		}
-		if (InstancesUtil::publishNodeDetails(conn, "Test-App",id, "localhost", 2039, 60) == -1) {
+		if (InstancesUtil::publishNodeDetails(conn, "Test-App",myNodeId, "localhost", 2039, 60) == -1) {
 			BroadcastUtil::stopAll(conn);
 			cout << "failed to publish instance details" << endl;
 			return -1;
@@ -103,7 +117,7 @@ int main(int argc, char **argv) {
 				cerr << "CALL BACK: " << payload << endl;
 				hasPayload = false;
 			}
-			cout << "[ID:" << id << "] CMD> ";
+			cout << "[ID:" << myNodeId << "] CMD> ";
 			std::cin.getline(message,1023);
 			if (strstr(message, "subscribe") == message || strstr(message, "SUBSCRIBE") == message) {
 				if (BroadcastUtil::addSubscription(conn, message+strlen("subscribe "), myCallback) != 1) {
@@ -156,7 +170,7 @@ int main(int argc, char **argv) {
 			printResult(res);
 		}
 	}
-	if (InstancesUtil::removeNodeDetails(conn, "Test-App",id) == 0) {
+	if (InstancesUtil::removeNodeDetails(conn, "Test-App",myNodeId) == 0) {
 		cout << "gracefully removed instance from system" << endl;
 	} else {
 		cout << "failed to remove instance from system" << endl;

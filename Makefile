@@ -22,7 +22,7 @@ CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(HIREDIS_DIR)/..
 TEST_CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(GTEST_DIR)/include -I$(GMOCK_DIR)/include -I$(HIREDIS_DIR)/..
 LDFLAGS := -lstdc++ -lpthread -pthread
 
-all: $(LIB_REDIS) $(TESTS) redis-cli
+all: $(LIB_REDIS) $(TESTS) test-app
 
 $(LIB_REDIS): $(HIREDIS_LIB) $(CPPS)
 	@echo 'Building target: $@'
@@ -62,9 +62,9 @@ test: $(LIB_REDIS) $(TESTS)
 
 cleanlib:
 
-redis-cli: cleanlib $(LIB_REDIS)
+test-app: cleanlib $(LIB_REDIS)
 	@echo 'Building redis-cli'
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ Test/TestRedisLib.cpp $(BUILD_DIR)/$(LIB_REDIS) $(BUILD_DIR)/$(HIREDIS_LIB)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ Test/TestApp.cpp $(BUILD_DIR)/$(LIB_REDIS) $(BUILD_DIR)/$(HIREDIS_LIB)
 
 clean:
 	cd $(GTEST_DIR)/make && $(MAKE) clean
