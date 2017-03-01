@@ -1,5 +1,5 @@
-# redis-lib
-A library to provide primitives for implementing multi instance cloud scale applications.
+# dynmi-lib
+A C++ library to provide primitives for implementing dynamic multi-instance cloud scale applications.
 
 ## Overview
 This library uses redis as an off-the-box distributed mem cache to provide following functionality:
@@ -17,7 +17,7 @@ Setup the repo as following:
 1. update submodules: `git submodule update --init --recursive`
 1. build library and test applications from top level repo directory: `make`
 
-Above will build `hiredis`, `googletest` and `googlemock` dependencies, and then will build the primitives library `libredis`. All these artifacts will be under `Build` subdirectory under top level repo directory.
+Above will build `hiredis`, `googletest` and `googlemock` dependencies, and then will build the primitives library `libdynmi`. All these artifacts will be under `Build` subdirectory under top level repo directory.
 
 ## Redis CRUD Operations
 Library provides following utilities that take care of boiler plate code when dealing with low level redis operations:
