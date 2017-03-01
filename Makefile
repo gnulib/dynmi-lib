@@ -10,7 +10,7 @@ GMOCK_DIR := gtest/googlemock
 GMOCK_LIB := gmock_main.a
 HIREDIS_DIR := hiredis
 HIREDIS_LIB := libhiredis.a
-LIB_REDIS = libredis.a
+LIB_DYNMI = libdynmi.a
 SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 # LIBS := $(HIREDIS_DIR)/$(HIREDIS_LIB) $(GTEST_DIR)/make/$(GTEST_LIB)
 LIBS := $(BUILD_DIR)/$(HIREDIS_LIB)
@@ -22,9 +22,9 @@ CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(HIREDIS_DIR)/..
 TEST_CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(GTEST_DIR)/include -I$(GMOCK_DIR)/include -I$(HIREDIS_DIR)/..
 LDFLAGS := -lstdc++ -lpthread -pthread
 
-all: $(LIB_REDIS) $(TESTS) test-app
+all: $(LIB_DYNMI) $(TESTS) test-app
 
-$(LIB_REDIS): $(HIREDIS_LIB) $(CPPS)
+$(LIB_DYNMI): $(HIREDIS_LIB) $(CPPS)
 	@echo 'Building target: $@'
 	ar -r $(BUILD_DIR)/$@ $(OBJS)
 
@@ -33,10 +33,10 @@ $(CPPS):
 	mkdir -p $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) $(LDFLAGS) -o $(patsubst %.cpp, $(BUILD_DIR)/%.o, $@) $(SRC_DIR)/$@
 
-$(TESTS): $(GTEST_LIB) $(GMOCK_LIB) $(LIB_REDIS)
+$(TESTS): $(GTEST_LIB) $(GMOCK_LIB) $(LIB_DYNMI)
 	@echo 'Building test: $@'
 	mkdir -p $(BUILD_DIR)
-	$(CC) $(TEST_CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ $(TEST_DIR)/$@.cpp $(BUILD_DIR)/$(LIB_REDIS) $(TESTLIBS)
+	$(CC) $(TEST_CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ $(TEST_DIR)/$@.cpp $(BUILD_DIR)/$(LIB_DYNMI) $(TESTLIBS)
 	cd $(BUILD_DIR) && ./$@
 	rm -f $(BUILD_DIR)/core.*
 
@@ -58,13 +58,13 @@ $(GMOCK_LIB): $(GTEST_LIB)
 	cd $(GMOCK_DIR)/make && $(MAKE)
 	cp -f $(GMOCK_DIR)/make/$(GMOCK_LIB) $(BUILD_DIR)
 
-test: $(LIB_REDIS) $(TESTS)
+test: $(LIB_DYNMI) $(TESTS)
 
 cleanlib:
 
-test-app: cleanlib $(LIB_REDIS)
+test-app: cleanlib $(LIB_DYNMI)
 	@echo 'Building redis-cli'
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ Test/TestApp.cpp $(BUILD_DIR)/$(LIB_REDIS) $(BUILD_DIR)/$(HIREDIS_LIB)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ Test/TestApp.cpp $(BUILD_DIR)/$(LIB_DYNMI) $(BUILD_DIR)/$(HIREDIS_LIB)
 
 clean:
 	cd $(GTEST_DIR)/make && $(MAKE) clean

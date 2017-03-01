@@ -12,8 +12,8 @@ This library uses redis as an off-the-box distributed mem cache to provide follo
 ## Getting started
 Setup the repo as following:
 
-1. clone repo from github url
-1. cd to repo directory
+1. clone repo from github url: `git clone git@github.com:gnulib/dynmi-lib.git`
+1. cd to repo directory: `cd dynmi-lib`
 1. update submodules: `git submodule update --init --recursive`
 1. build library and test applications from top level repo directory: `make`
 
