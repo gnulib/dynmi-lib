@@ -30,15 +30,29 @@ private:
 	~BroadcastUtil();
 
 public:
-	static bool isInitialized() { return initialized;}
-	// we'll inject the RedisConnection instance to be used by worker,
-	// for testability purpose
-	static bool initialize(const char * appId, const char* nodeId, RedisConnection * workerConn);
+	// initialize the library before it can be used. we inject the RedisConnection instance
+	// to be used by background worker thread for testability purpose
+	static bool initialize(const char * appId, const char* uniqueId, RedisConnection * workerConn);
+
+	// another way to initialize the library where instance's node ID is used as uniqueId
 	static bool initializeId(const char * appId, int nodeId, RedisConnection * workerConn);
+
+	// get initialization status
+	static bool isInitialized() { return initialized;}
+
+	// stop all subscriptions and worker thread for this channel, used during shutdown
 	static void stopAll(RedisConnection& conn);
+
+	// check if worker thread is running
 	static bool isRunning();
+
+	// publish a message to broadcast on named channel
 	static int publish(RedisConnection& conn, const char* channelName, const char* message);
+
+	// subscribe this instance to receive messages published on named channel
 	static int addSubscription(RedisConnection& conn, const char* channelName, callbackFunc);
+
+	// remove subscription of this instance from named channel
 	static int removeSubscription(RedisConnection& conn, const char* channelName);
 
 protected:
