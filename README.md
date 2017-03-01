@@ -100,10 +100,10 @@ Library implements a singleton class `BroadcastUtil` that provides following pri
 ```
 
 ## Example application
-An very simple test application is provided that has some basic usage of the primitives described above. Its built along with rest of the library code and executable is under `Build/redis-cli` after building the repo. It can be used as following:
+An very simple test application is provided that has some basic usage of the primitives described above. Its built along with rest of the library code and executable is under `Build/test-app` after building the repo. It can be used as following:
 * launching application  
 ```
-$ ./Build/redis-cli localhost 6379
+$ ./Build/test-app localhost 6379
 total args: 3
 0: ./Build/redis-cli
 1: localhost
