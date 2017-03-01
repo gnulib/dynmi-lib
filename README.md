@@ -11,6 +11,7 @@ This library uses redis as an off-the-box distributed mem cache to provide follo
 
 ## Getting started
 Setup the repo as following:
+
 1. clone repo from github url
 1. cd to repo directory
 1. update submodules: `git submodule update --init --recursive`
@@ -157,4 +158,4 @@ gracefully removed instance from system
 $
 ```
 
-For testing purpose, multiple instances of this application can be executed in parallel, to understand the behavior of certain multi-instance primitives, e.g. local management, or channel subscription etc.
+For testing purpose, multiple instances of this application can be executed in parallel, to understand the behavior of certain multi-instance primitives, e.g. lock management, or channel subscription etc.
