@@ -42,8 +42,10 @@ bool BroadcastUtil::initializeWithId(const char * appId, int nodeId,
 bool BroadcastUtil::initialize(const char * appId, const char* salt,
 		RedisConnection * workerConn) {
 	if (!initialized) {
-		if (pthread_mutex_init(&BroadcastUtil::mtx, NULL) != 0)
+		if (pthread_mutex_init(&BroadcastUtil::mtx, NULL) != 0) {
+			delete workerConn;
 			return false;
+		}
 		pthread_mutex_lock(&BroadcastUtil::mtx);
 		try {
 			// check once more, after we get lock, in case someone else had already initialized
