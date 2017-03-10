@@ -172,6 +172,24 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 	return res.intResult();
 }
 
+std::set<std::string> InstancesUtil::getAllNodes(RedisConnection& conn, const char* appId){
+	std::set<std::string> nodes;
+	if (!conn.isConnected()) {
+		return nodes;
+	}
+	std::string key = std::string(NAMESPACE_PREFIX)
+			+ ":" + appId + ":INSTANCES";
+	std::string command = std::string("SMEMBERS ") + key;
+	RedisResult res = conn.cmd(command.c_str());
+	if(res.resultType() != ARRAY) {
+		return nodes;
+	}
+	for (int i=0; i < res.arraySize(); i++) {
+		nodes.insert(res.arrayResult(i).strResult());
+	}
+	return nodes;
+}
+
 int InstancesUtil::getNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId, std::string& host, int& port){
 	if (!conn.isConnected()) {

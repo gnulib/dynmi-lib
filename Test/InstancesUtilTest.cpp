@@ -171,6 +171,36 @@ TEST(InstancesUtilTest, refreshNodeDetailsCommandSequence) {
 	ASSERT_EQ(InstancesUtil::refreshNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), 20), 20);
 }
 
+TEST(InstancesUtilTest, getAllNodesCommandSequence) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+	std::string command1 = std::string("SMEMBERS ") + NAMESPACE_PREFIX
+							+ ":" + TEST_APP_ID + ":INSTANCES";
+	std::string ids[] = {std::string("1"), std::string("2"), std::string("3")};
+	redisReply** values = new redisReply*[3];
+	values[0] = getStringReply(ids[0].c_str());
+	values[1] = getStringReply(ids[1].c_str());
+	values[2] = getStringReply(ids[2].c_str());
+
+	// expect following calls in sequence
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(conn, cmd(StrEq(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getArrayResult(3, values)));
+	}
+	// call the utility method to get all nodes
+	std::set<std::string> nodes = InstancesUtil::getAllNodes(conn, TEST_APP_ID.c_str());
+	ASSERT_EQ(nodes.size(), 3);
+	int i=0;
+	for (std::set<std::string>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		ASSERT_STREQ((*it).c_str(), ids[i++].c_str());
+	}
+}
+
 TEST(InstancesUtilTest, getNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
