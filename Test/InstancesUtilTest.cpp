@@ -151,6 +151,26 @@ TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
 	ASSERT_EQ(InstancesUtil::publishNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), TEST_HOST.c_str(), std::atoi(TEST_PORT.c_str()), 20), 1);
 }
 
+TEST(InstancesUtilTest, refreshNodeDetailsCommandSequence) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+	std::string command1 = std::string("EXPIRE ") + NAMESPACE_PREFIX
+							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID + ":ADDRESS 20";
+
+	// expect following calls in sequence
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(conn, cmd(StrEq(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(20)));
+	}
+	// call the utility method to get a node's address
+	ASSERT_EQ(InstancesUtil::refreshNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), 20), 20);
+}
+
 TEST(InstancesUtilTest, getNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);

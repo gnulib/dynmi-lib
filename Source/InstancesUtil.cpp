@@ -90,6 +90,24 @@ int InstancesUtil::registerInstanceDownCallback(RedisConnection& conn,
 	return BroadcastUtil::addSubscription(conn, channelInstanceDown(appId).c_str(), func);
 }
 
+int InstancesUtil::refreshNodeDetails(RedisConnection& conn, const char* appId,
+					const int nodeId, int ttl) {
+	if (!conn.isConnected()) {
+		return -1;
+	}
+#if __cplusplus >= 201103L
+	std::string nodeIdStr = std::to_string(nodeId);
+	std::string ttlStr = std::to_string(ttl);
+#else
+	std::string nodeIdStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (nodeId)) )->str();
+	std::string ttlStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (ttl)) )->str();
+#endif
+	std::string key1 = std::string(NAMESPACE_PREFIX) + ":" + appId
+			+ ":INSTANCE:" + nodeIdStr + ":ADDRESS";
+	std::string command1 = std::string("EXPIRE ") + key1 + " " + ttlStr;
+	return conn.cmd(command1.c_str()).intResult();
+}
+
 /**
  * first write node's address details as a hash set, with following key schema
  *   <NAMESPACE PREFIX>:<App ID>:INSTANCE:<Node ID>:ADDRESS (TTL set to specified value)
@@ -174,7 +192,12 @@ int InstancesUtil::getNodeDetails(RedisConnection& conn, const char* appId,
 
 	// copy result into provided references
 	host = res.arrayResult(1).strResult();
-	port = std::atoi(res.arrayResult(3).strResult());
+#if __cplusplus >= 201103L
+	port = std::stol(res.arrayResult(3).strResult());
+#else
+	std::istringstream(res.arrayResult(3).strResult()) >> port;
+#endif
+
 
 	// return success
 	return 0;

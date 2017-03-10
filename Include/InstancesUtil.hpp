@@ -35,11 +35,15 @@ public:
 	// register a callback method for any instance down notification
 	static int registerInstanceDownCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
 
+	// refresh node's address details
+	static int refreshNodeDetails(RedisConnection& conn, const char* appId,
+					const int nodeId, int ttl);
+
 	// publish a node's address details
 	static int publishNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId, const char* host, int port, int ttl);
 
-	// publish a node's address details
+	// get a node's address details
 	static int getNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId, std::string& host, int& port);
 
