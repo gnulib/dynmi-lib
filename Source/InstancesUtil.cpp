@@ -154,6 +154,32 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 	return res.intResult();
 }
 
+int InstancesUtil::getNodeDetails(RedisConnection& conn, const char* appId,
+					const int nodeId, std::string& host, int& port){
+	if (!conn.isConnected()) {
+		return -1;
+	}
+#if __cplusplus >= 201103L
+	std::string nodeIdStr = std::to_string(nodeId);
+#else
+	std::string nodeIdStr = static_cast<std::ostringstream*>( &(std::ostringstream() << (nodeId)) )->str();
+#endif
+	std::string key1 = std::string(NAMESPACE_PREFIX) + ":" + appId
+			+ ":INSTANCE:" + nodeIdStr + ":ADDRESS";
+	std::string command1 = std::string("HGETALL ") + key1;
+	RedisResult res = conn.cmd(command1.c_str());
+	if(res.resultType() != ARRAY || res.arraySize() != 4) {
+		return -1;
+	}
+
+	// copy result into provided references
+	host = res.arrayResult(1).strResult();
+	port = std::atoi(res.arrayResult(3).strResult());
+
+	// return success
+	return 0;
+}
+
 /**
  * remove a node's entries from system, and broadcast node down
  */

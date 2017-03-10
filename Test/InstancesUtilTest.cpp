@@ -151,6 +151,35 @@ TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
 	ASSERT_EQ(InstancesUtil::publishNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), TEST_HOST.c_str(), std::atoi(TEST_PORT.c_str()), 20), 1);
 }
 
+TEST(InstancesUtilTest, getNodeDetailsCommandSequence) {
+    // create a mock connection instance
+	MockRedisConnection conn(NULL, 0);
+	std::string command1 = std::string("HGETALL ") + NAMESPACE_PREFIX
+							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID + ":ADDRESS";
+	redisReply** values = new redisReply*[4];
+	values[0] = getStringReply("HOST");
+	values[1] = getStringReply(TEST_HOST.c_str());
+	values[2] = getStringReply("PORT");
+	values[3] = getStringReply(TEST_PORT.c_str());
+
+	// expect following calls in sequence
+	{
+		InSequence dummy;
+		EXPECT_CALL(conn, isConnected())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(conn, cmd(StrEq(command1.c_str())))
+		.Times(1)
+		.WillOnce(Return(getArrayResult(4, values)));
+	}
+	// call the utility method to get a node's address
+	std::string host;
+	int port;
+	ASSERT_EQ(InstancesUtil::getNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), host, port), 0);
+	ASSERT_STREQ(host.c_str(), TEST_HOST.c_str());
+	ASSERT_EQ(port, std::atoi(TEST_PORT.c_str()));
+}
+
 TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);

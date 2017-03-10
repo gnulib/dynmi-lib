@@ -8,6 +8,7 @@
 #ifndef INCLUDE_INSTANCESUTIL_HPP_
 #define INCLUDE_INSTANCESUTIL_HPP_
 
+#include<string>
 class RedisConnection;
 //typedef void (*callbackFunc)(const char*);
 
@@ -37,6 +38,10 @@ public:
 	// publish a node's address details
 	static int publishNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId, const char* host, int port, int ttl);
+
+	// publish a node's address details
+	static int getNodeDetails(RedisConnection& conn, const char* appId,
+					const int nodeId, std::string& host, int& port);
 
 	// remove a node's details from system
 	static int removeNodeDetails(RedisConnection& conn, const char* appId,
