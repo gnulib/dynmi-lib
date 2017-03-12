@@ -18,16 +18,35 @@ RedisConnection::RedisConnection(const char * host, int port) {
 		// handle error
 		delete myCtx;
 		myCtx = NULL;
+	} else {
+		redisHost = host;
+		redisPort = port;
 	}
 }
 
 RedisConnection::RedisConnection() {
 	myCtx = NULL;
+	redisHost = "";
+	redisPort = 0;
 }
 
 RedisConnection::~RedisConnection() {
 	if (myCtx)
 		delete myCtx;
+}
+
+bool RedisConnection::reconnect() {
+	if (myCtx) {
+		delete myCtx;
+	}
+	myCtx = redisConnect(redisHost.c_str(), redisPort);
+	if (myCtx->err) {
+		// handle error
+		delete myCtx;
+		myCtx = NULL;
+		return false;
+	}
+	return true;
 }
 
 bool RedisConnection::isConnected() const {

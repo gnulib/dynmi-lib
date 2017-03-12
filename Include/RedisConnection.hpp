@@ -8,6 +8,8 @@
 #ifndef REDISCONNECTION_HPP_
 #define REDISCONNECTION_HPP_
 
+#include <string>
+
 // a namespace prefix to use with all our keys with Redis
 // change this value to use different/custom app namespace
 static const char * NAMESPACE_PREFIX = "SCALABLE_APP";
@@ -37,9 +39,18 @@ public:
 	// get connection status
 	virtual bool isConnected() const;
 
+	// reconnect connection
+	bool reconnect();
+
+	// clone a connection (for thread safety)
+	RedisConnection clone() const {return RedisConnection(redisHost.c_str(), redisPort);}
+
 protected:
 	// my redis context pointer
 	redisContext* myCtx;
+	// save redis info for reconnecting and cloning
+	std::string redisHost;
+	int redisPort;
 };
 
 
