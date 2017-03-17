@@ -10,10 +10,6 @@
 
 #include <string>
 
-// a namespace prefix to use with all our keys with Redis
-// change this value to use different/custom app namespace
-static const char * NAMESPACE_PREFIX = "SCALABLE_APP";
-
 class RedisResult;
 struct redisContext;
 /**
@@ -32,6 +28,9 @@ protected:
 public:
 	// a generic method to execute redis commands
 	virtual RedisResult cmd(const char *);
+
+	// a generic method to execute multi arg redis commands
+	virtual RedisResult cmdArgv(int argc, const std::string* argv);
 
 	// a method to support variable length strings in argument
 	virtual RedisResult publish(const char * channel, const char* message);

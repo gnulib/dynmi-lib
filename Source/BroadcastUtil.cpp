@@ -9,6 +9,7 @@
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
 #include "ChannelMessage.hpp"
+#include "DynmiGlobals.hpp"
 #include <cstdlib>
 #include <unistd.h>
 #include <sstream>

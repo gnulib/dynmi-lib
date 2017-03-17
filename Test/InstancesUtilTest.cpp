@@ -11,6 +11,7 @@
 #include "RedisConnection.hpp"
 #include "RedisResult.hpp"
 #include "RedisReplyFixtures.hpp"
+#include "DynmiGlobals.hpp"
 #include <string>
 #include <ctime>
 

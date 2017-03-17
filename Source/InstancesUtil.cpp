@@ -5,7 +5,7 @@
  *      Author: bhadoria
  */
 
-
+#include "DynmiGlobals.hpp"
 #include "InstancesUtil.hpp"
 #include "BroadcastUtil.hpp"
 #include "RedisConnection.hpp"

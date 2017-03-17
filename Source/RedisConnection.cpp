@@ -85,3 +85,23 @@ RedisResult RedisConnection::publish(const char * channel, const char * message)
 	}
 	return res;
 }
+
+RedisResult RedisConnection::cmdArgv(int argc, const std::string* argv) {
+	RedisResult res = RedisResult();
+	if (!myCtx) {
+		// we don't have a connection, so nothing to do
+		res.type = FAILED;
+	} else {
+		const char** argvs = new const char*[argc];
+		for (int i=0; i< argc; i++) {
+			argvs[i] = argv[i].c_str();
+		}
+//		std::cerr << "##### sending command: " << PUBLISH << " |" << channel << "| |" << message << "|" << std::endl;
+		redisReply *r = (redisReply*) redisCommandArgv(myCtx, argc, argvs, NULL);
+		if (r == NULL)
+			res.type = FAILED;
+		else
+			res.setRedisReply(r);
+	}
+	return res;
+}
