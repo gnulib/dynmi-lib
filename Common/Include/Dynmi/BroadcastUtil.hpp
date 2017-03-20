@@ -44,7 +44,7 @@ public:
 	static bool initialize(BroadcastUtil* mock);
 
 	// get initialization status
-	bool isInitialized() { return initialized;}
+	virtual bool isInitialized() { return initialized;}
 
 	// stop all subscriptions and worker thread for this channel, used during shutdown
 	static void stopAll(RedisConnection& conn);
@@ -53,13 +53,13 @@ public:
 	static bool isRunning();
 
 	// publish a message to broadcast on named channel
-	int publish(RedisConnection& conn, const char* channelName, const char* message);
+	virtual int publish(RedisConnection& conn, const char* channelName, const char* message);
 
 	// subscribe this instance to receive messages published on named channel
-	int addSubscription(RedisConnection& conn, const char* channelName, callbackFunc);
+	virtual int addSubscription(RedisConnection& conn, const char* channelName, callbackFunc);
 
 	// remove subscription of this instance from named channel
-	int removeSubscription(RedisConnection& conn, const char* channelName);
+	virtual int removeSubscription(RedisConnection& conn, const char* channelName);
 
 protected:
 	std::string getControlChannel();

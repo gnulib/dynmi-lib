@@ -17,6 +17,7 @@
 #include "Dynmi/RedisConnection.hpp"
 #include "Dynmi/RedisResult.hpp"
 #include "Dynmi/DynmiGlobals.hpp"
+#include "CdMQPayload.hpp"
 
 const static std::string CDMQ = "CDMQ:APP:";
 const static std::string QUEUE = ":QUEUE:";
@@ -150,21 +151,22 @@ bool CdMQUtil::enQueue(const std::string& appId, const std::string qName, const 
 		return result;
 	}
 	// add message to the back of the channel queue
-	std::string args[3] = {ENQUEUE_CMD, makeChannelQueueName(appId, qName), message};
+//	std::string args[3] = {ENQUEUE_CMD, makeChannelQueueName(appId, qName), message};
+	std::string args[3] = {ENQUEUE_CMD, makeChannelQueueName(appId, qName), CdMQPayload(tag, message).toJson()};
 	RedisResult res = RedisConnectionTL::instance().cmdArgv(3, args);
 	if (res.resultType() != FAILED) {
-		// add tag to the back of the session queue
-		std::string args[3] = {ENQUEUE_CMD, makeSessionQueueName(appId, qName), tag};
-		res = RedisConnectionTL::instance().cmdArgv(3, args);
-		if (res.resultType() != FAILED) {
+//		// add tag to the back of the session queue
+//		std::string args[3] = {ENQUEUE_CMD, makeSessionQueueName(appId, qName), tag};
+//		res = RedisConnectionTL::instance().cmdArgv(3, args);
+//		if (res.resultType() != FAILED) {
 			// publish a message about queue getting a message
 			// TODO
 
 			result=true;
-		} else {
-			// remove the message from back of channel queue
-			RedisConnectionTL::instance().cmd((UNQUEUE_CMD + makeChannelQueueName(appId, qName)).c_str());
-		}
+//		} else {
+//			// remove the message from back of channel queue
+//			RedisConnectionTL::instance().cmd((UNQUEUE_CMD + makeChannelQueueName(appId, qName)).c_str());
+//		}
 	}
 	// release lock on the queue
 	InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str());
@@ -179,45 +181,33 @@ CdMQMessage CdMQUtil::deQueue(const std::string& appId, const std::string qName,
 		RedisResult res = RedisConnectionTL::instance().cmd((GETALL_CMD + makeSessionQueueName(appId, qName) + GETALL_INDX).c_str());
 		if (res.resultType() == ARRAY) {
 			for (int i = 0; i < res.arraySize(); i++) {
-				// attempt session lock for the session
-				std::string tag = res.arrayResult(i).strResult();
-				if (InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, tag).c_str(), ttl) == 0) {
-					// fetch the message for this session
-					res = RedisConnectionTL::instance().cmd(makeFetchCommand(appId, qName, i).c_str());
-					if (res.resultType() == STRING) {
-						// construct CDMQ message object with valid indication
-						std::string payload = res.strResult();
-						message = CdMQMessage(payload, appId, tag);
+				CdMQPayload payload = CdMQPayload::fromJson(res.arrayResult(i).strResult());
+				// attempt a lock on current message's session
+				if (InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, payload.getTag()).c_str(), ttl) == 0) {
+					// construct CDMQ message object with valid indication
+					message = CdMQMessage(payload.getMessage(), appId, payload.getTag());
 
-						// RELIABLY remove the tag from session queue and message from channel queue
-						// at the current i'th location as following:
-						// first, set the item on i'th position as MARKER
-						// then remove the occurrence of the item MARKER
-						//
-						// we use this approach instead of removing the item directly because
-						// there is no guarantee that item (specially message) being removed is not
-						// already in queue for some other locked tag that we skipped earlier
-						// and if that was the case, then we'll end up deleting that wrong locked item
-
-						{
-							std::string name = makeSessionQueueName(appId, qName);
-							RedisConnectionTL::instance().cmd(makeMarkerCommand(name, i).c_str());
-							std::string args[4] = {REM_CMD, name, "1", MARKER};
-							RedisConnectionTL::instance().cmdArgv(4, args);
-						}
-						{
-							std::string name = makeChannelQueueName(appId, qName);
-							RedisConnectionTL::instance().cmd(makeMarkerCommand(name, i).c_str());
-							std::string args[4] = {REM_CMD, name, "1", MARKER};
-							RedisConnectionTL::instance().cmdArgv(4, args);
-						}
-
-						// register callback for any future session active events on this session
-						// TODO, need to implement local call back management so can register dynamically for new session IDs
-						break;
-					} else {
-						//
+					// RELIABLY remove the tag from session queue and message from channel queue
+					// at the current i'th location as following:
+					// first, set the item on i'th position as MARKER
+					// then remove the occurrence of the item MARKER
+					//
+					// we use this approach instead of removing the item directly because
+					// there is no guarantee that item (specially message) being removed is not
+					// already in queue for some other locked tag that we skipped earlier
+					// and if that was the case, then we'll end up deleting that wrong locked item
+					{
+						std::string name = makeChannelQueueName(appId, qName);
+						RedisConnectionTL::instance().cmd(makeMarkerCommand(name, i).c_str());
+						std::string args[4] = {REM_CMD, name, "0", MARKER};
+						RedisConnectionTL::instance().cmdArgv(4, args);
 					}
+
+					// register callback for any future session active events on this session
+					// TODO, need to implement local call back management so can register dynamically for new session IDs
+
+					// we found an unlocked message, break out of the loop
+					break;
 				}
 			}
 		}

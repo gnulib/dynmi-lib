@@ -33,13 +33,13 @@ public:
 	static bool initialize(CdMQUtil* mock);
 
 	// add a message at the back of the named queue
-	bool enQueue(const std::string& appId, const std::string qName, const std::string& message, const std::string& tag="");
+	virtual bool enQueue(const std::string& appId, const std::string qName, const std::string& message, const std::string& tag="");
 
 	// get a message from front of the named queue
-	CdMQMessage deQueue(const std::string& appId, const std::string qName, int ttl);
+	virtual CdMQMessage deQueue(const std::string& appId, const std::string qName, int ttl);
 
 	// register callback method to process message when available on named queue
-	bool registerReadyCallback(const std::string& appId, const std::string qName, void (*callbackFunc)(const char*));
+	virtual bool registerReadyCallback(const std::string& appId, const std::string qName, void (*callbackFunc)(const char*));
 
 private:
 	static CdMQUtil* inst;

@@ -10,8 +10,9 @@
 #include "Dynmi/InstancesUtil.hpp"
 #include "Dynmi/RedisConnection.hpp"
 #include "Dynmi/RedisResult.hpp"
-#include "RedisReplyFixtures.hpp"
 #include "Dynmi/DynmiGlobals.hpp"
+#include "RedisReplyFixtures.hpp"
+#include "MockRedisConnection.hpp"
 #include <string>
 #include <ctime>
 
@@ -22,14 +23,6 @@ static const std::string TEST_NODE_ID = "99";
 static const std::string TEST_HOST = "test.host";
 static const std::string TEST_PORT = "2938";
 static const std::string TEST_LOCK_NAME = "test-lock";
-
-class MockRedisConnection : public RedisConnection {
-public:
-	MockRedisConnection(const char* host, int port) : RedisConnection(host, port){};
-	MOCK_METHOD1(cmd, RedisResult(const char *));
-	MOCK_CONST_METHOD0(isConnected, bool());
-	MOCK_METHOD2(publish, RedisResult(const char *, const char *));
-};
 
 TEST(InstancesUtilTest, getNewInstanceIdNonIntegerResultType) {
     // create a mock connection instance
