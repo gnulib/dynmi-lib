@@ -1,8 +1,5 @@
-TARGETS := Dynmi TestApp
-APPTESTS := $(patsubst %, %Test, $(TARGETS))
-#mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
-#ROOT_DIR := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
 export ROOT_DIR := $(shell pwd)
+export COMMON_MK = $(ROOT_DIR)/common.mk
 export BUILD_DIR := $(ROOT_DIR)/Build
 export COMMON_INCLUDE_DIR := $(ROOT_DIR)/Common/Include
 export INCLUDE_DIR := Include
@@ -23,27 +20,14 @@ export LIBS := $(LIBS_DIR)/$(HIREDIS_LIB)
 export TESTLIBS := $(LIBS_DIR)/$(HIREDIS_LIB) $(LIBS_DIR)/$(GTEST_LIB) $(LIBS_DIR)/$(GMOCK_LIB)
 export CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(HIREDIS_DIR)/.. -I$(COMMON_INCLUDE_DIR)
 export TEST_CFLAGS := $(CFLAGS) -I$(GTEST_DIR)/include -I$(GMOCK_DIR)/include
-export LDFLAGS := -lstdc++ -lpthread -pthread
+
+TARGETS := Dynmi TestApp
+APPTESTS := $(patsubst %, %Test, $(TARGETS))
+
 
 all: $(TARGETS)
 
-$(HIREDIS_LIB):
-	@echo 'Building hiredis library'
-	mkdir -p $(LIBS_DIR)
-	cd $(HIREDIS_DIR) && $(MAKE)
-	cp -f $(HIREDIS_DIR)/$(HIREDIS_LIB) $(LIBS_DIR)
-
-$(GTEST_LIB): 
-	@echo 'Building googletest'
-	mkdir -p $(LIBS_DIR)
-	cd $(GTEST_DIR)/make && $(MAKE)
-	cp -f $(GTEST_DIR)/make/$(GTEST_LIB) $(LIBS_DIR)
-
-$(GMOCK_LIB): $(GTEST_LIB)
-	@echo 'Building googlemock'
-	mkdir -p $(LIBS_DIR)
-	cd $(GMOCK_DIR)/make && $(MAKE)
-	cp -f $(GMOCK_DIR)/make/$(GMOCK_LIB) $(LIBS_DIR)
+include $(COMMON_MK)
 
 $(TARGETS): $(HIREDIS_LIB) $(GTEST_LIB) $(GMOCK_LIB)
 	@echo 'Building target: $@'
@@ -60,5 +44,3 @@ clean:
 	cd $(GMOCK_DIR)/make && $(MAKE) clean
 	cd $(HIREDIS_DIR) && $(MAKE) clean
 	rm -rf $(BUILD_DIR)
-
-.PHONY: all cleanlib

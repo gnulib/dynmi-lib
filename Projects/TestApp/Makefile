@@ -2,46 +2,27 @@ SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 TESTS := $(patsubst $(TEST_DIR)/%.cpp, %, $(wildcard $(TEST_DIR)/*Test.cpp))
 CPPS := $(patsubst $(SRC_DIR)/%.cpp, %.cpp, $(SRCS))
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(OBJS_DIR)/%.o, $(SRCS))
+LDFLAGS := -lstdc++ -lpthread -pthread
 
 all: test-app
 
-$(LIB_DYNMI): $(HIREDIS_LIB) $(CPPS)
-	@echo 'Building target: $@'
-	ar -r $(LIBS_DIR)/$@ $(OBJS)
+include $(COMMON_MK)
 
 $(CPPS):
 	@echo 'Building target: $@'
 	mkdir -p $(OBJS_DIR)
 	$(CC) -c $(CFLAGS) $(LDFLAGS) -o $(patsubst %.cpp, $(OBJS_DIR)/%.o, $@) $(SRC_DIR)/$@
 
-$(TESTS): $(GTEST_LIB) $(GMOCK_LIB) $(LIB_DYNMI)
+$(TESTS): $(GTEST_LIB) $(GMOCK_LIB)
 	@echo 'Building test: $@'
 	mkdir -p $(TESTS_DIR)
 	$(CC) $(TEST_CFLAGS) $(LDFLAGS) -o $(TESTS_DIR)/$@ $(TEST_DIR)/$@.cpp $(LIBS_DIR)/$(LIB_DYNMI) $(TESTLIBS)
 	cd $(BUILD_DIR) && ./$@
 	rm -f $(BUILD_DIR)/core.*
 
-$(HIREDIS_LIB):
-	@echo 'Building hiredis library'
-	mkdir -p $(LIBS_DIR)
-	cd $(HIREDIS_DIR) && $(MAKE)
-	cp -f $(HIREDIS_DIR)/$(HIREDIS_LIB) $(LIBS_DIR)
-
-$(GTEST_LIB): 
-	@echo 'Building googletest'
-	mkdir -p $(LIBS_DIR)
-	cd $(GTEST_DIR)/make && $(MAKE)
-	cp -f $(GTEST_DIR)/make/$(GTEST_LIB) $(LIBS_DIR)
-
-$(GMOCK_LIB): $(GTEST_LIB)
-	@echo 'Building googlemock'
-	mkdir -p $(LIBS_DIR)
-	cd $(GMOCK_DIR)/make && $(MAKE)
-	cp -f $(GMOCK_DIR)/make/$(GMOCK_LIB) $(LIBS_DIR)
-
 test: $(LIB_DYNMI) $(TESTS)
 
-test-app: cleanlib $(LIB_DYNMI) $(CPPS)
+test-app: $(CPPS)
 	@echo 'Building redis-cli'
 	mkdir -p $(BINS_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BINS_DIR)/$@ $(OBJS) $(LIBS_DIR)/$(LIB_DYNMI) $(LIBS_DIR)/$(HIREDIS_LIB)
@@ -51,5 +32,3 @@ clean:
 	cd $(GMOCK_DIR)/make && $(MAKE) clean
 	cd $(HIREDIS_DIR) && $(MAKE) clean
 	rm -rf $(BUILD_DIR)
-
-.PHONY: all cleanlib
