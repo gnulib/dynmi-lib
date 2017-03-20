@@ -38,9 +38,3 @@ $(APPTESTS): $(HIREDIS_LIB) $(GTEST_LIB) $(GMOCK_LIB)
 	cd Projects/$(patsubst %Test,%,$@) && $(MAKE) test
 
 test: $(APPTESTS)
-
-clean:
-	cd $(GTEST_DIR)/make && $(MAKE) clean
-	cd $(GMOCK_DIR)/make && $(MAKE) clean
-	cd $(HIREDIS_DIR) && $(MAKE) clean
-	rm -rf $(BUILD_DIR)
