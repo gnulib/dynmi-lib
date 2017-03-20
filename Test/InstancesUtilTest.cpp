@@ -49,7 +49,7 @@ TEST(InstancesUtilTest, getNewInstanceIdNonIntegerResultType) {
 
 	// verify that InstanceUtil returns back instance ID as -1
 	// when redis operation result is of type error
-	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID.c_str()), -1);
+	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(conn, TEST_APP_ID.c_str()), -1);
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdCommandFailure) {
@@ -70,7 +70,7 @@ TEST(InstancesUtilTest, getNewInstanceIdCommandFailure) {
 
 	// verify that InstanceUtil returns back instance ID as -1
 	// when command execution fails
-	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID.c_str()), -1);
+	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(conn, TEST_APP_ID.c_str()), -1);
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
@@ -91,7 +91,7 @@ TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// invoke the utility with request to reserver instance ID
-	InstancesUtil::getNewInstanceId(conn, TEST_APP_ID.c_str());
+	InstancesUtil::instance().getNewInstanceId(conn, TEST_APP_ID.c_str());
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
@@ -111,7 +111,7 @@ TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
 
 	// verify that InstanceUtil returns back instance ID same as
 	// what we initialized our redis response above
-	ASSERT_EQ(InstancesUtil::getNewInstanceId(conn, TEST_APP_ID.c_str()), 99);
+	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(conn, TEST_APP_ID.c_str()), 99);
 }
 
 TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
@@ -149,7 +149,7 @@ TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
 	}
 	// call the utility method to publish node's address
 	// and expect 1 node as subscriber
-	ASSERT_EQ(InstancesUtil::publishNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), TEST_HOST.c_str(), std::atoi(TEST_PORT.c_str()), 20), 1);
+	ASSERT_EQ(InstancesUtil::instance().publishNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), TEST_HOST.c_str(), std::atoi(TEST_PORT.c_str()), 20), 1);
 }
 
 TEST(InstancesUtilTest, refreshNodeDetailsCommandSequence) {
@@ -169,7 +169,7 @@ TEST(InstancesUtilTest, refreshNodeDetailsCommandSequence) {
 		.WillOnce(Return(getIntegerResult(20)));
 	}
 	// call the utility method to get a node's address
-	ASSERT_EQ(InstancesUtil::refreshNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), 20), 20);
+	ASSERT_EQ(InstancesUtil::instance().refreshNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), 20), 20);
 }
 
 TEST(InstancesUtilTest, getAllNodesCommandSequence) {
@@ -194,7 +194,7 @@ TEST(InstancesUtilTest, getAllNodesCommandSequence) {
 		.WillOnce(Return(getArrayResult(3, values)));
 	}
 	// call the utility method to get all nodes
-	std::set<std::string> nodes = InstancesUtil::getAllNodes(conn, TEST_APP_ID.c_str());
+	std::set<std::string> nodes = InstancesUtil::instance().getAllNodes(conn, TEST_APP_ID.c_str());
 	ASSERT_EQ(nodes.size(), 3);
 	int i=0;
 	for (std::set<std::string>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
@@ -226,7 +226,7 @@ TEST(InstancesUtilTest, getNodeDetailsCommandSequence) {
 	// call the utility method to get a node's address
 	std::string host;
 	int port;
-	ASSERT_EQ(InstancesUtil::getNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), host, port), 0);
+	ASSERT_EQ(InstancesUtil::instance().getNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), host, port), 0);
 	ASSERT_STREQ(host.c_str(), TEST_HOST.c_str());
 	ASSERT_EQ(port, std::atoi(TEST_PORT.c_str()));
 }
@@ -263,7 +263,7 @@ TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
 	}
 	// call the utility method to publish node's address
 	// and expect 1 node as subscriber
-	ASSERT_EQ(InstancesUtil::removeNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str())), 0);
+	ASSERT_EQ(InstancesUtil::instance().removeNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str())), 0);
 }
 
 /**
@@ -312,7 +312,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep1Lock) {
 		.WillOnce(Return(getIntegerResult(1)));
 	}
 	// we expect a return value 0/success
-	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
+	ASSERT_EQ(InstancesUtil::instance().getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
 }
 
 TEST(InstancesUtilTest, fastLockCommandSequenceStep2Busy) {
@@ -347,7 +347,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep2Busy) {
 		.WillOnce(Return(getStringResult(oldExpiry.c_str())));
 	}
 	// we expect a return value that has remaining time for lock is busy
-	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
+	ASSERT_EQ(InstancesUtil::instance().getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
 }
 
 TEST(InstancesUtilTest, fastLockCommandSequenceStep3Lost) {
@@ -399,7 +399,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Lost) {
 		.WillOnce(Return(RedisResult()));
 	}
 	// we expect a return value that has remaining time for lock is busy
-	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
+	ASSERT_EQ(InstancesUtil::instance().getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
 }
 
 TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
@@ -452,7 +452,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
 		.WillOnce(Return(getIntegerResult(1)));
 }
 	// we expect a return value 0/success
-	ASSERT_EQ(InstancesUtil::getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
+	ASSERT_EQ(InstancesUtil::instance().getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
 }
 
 int main(int argc, char **argv) {

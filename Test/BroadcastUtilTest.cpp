@@ -74,7 +74,7 @@ TEST(BroadcastUtilTest, initializationSuccess) {
 
 	// verify that BroadcastUtil intializes
 	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), workerConn));
-	ASSERT_TRUE(BroadcastUtil::isRunning());
+	ASSERT_TRUE(BroadcastUtil::instance().isRunning());
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
 	BroadcastUtil::stopAll(myConn);
@@ -181,7 +181,7 @@ TEST(BroadcastUtilTest, controlDataMessage) {
 	// initiate worker thread
 	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), conn));
 	// subscribe to test channel
-	ASSERT_EQ(BroadcastUtil::addSubscription(myConn, TEST_CHANNEL_NAME.c_str(), test_call_back), 1);
+	ASSERT_EQ(BroadcastUtil::instance().addSubscription(myConn, TEST_CHANNEL_NAME.c_str(), test_call_back), 1);
 
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
@@ -235,7 +235,7 @@ TEST(BroadcastUtilTest, commandPublishMessage) {
 	// initiate worker thread
 	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), conn));
 	// send a test message on our test channel
-	BroadcastUtil::publish(myConn, TEST_CHANNEL_NAME.c_str(), TEST_BROADCAST.c_str());
+	BroadcastUtil::instance().publish(myConn, TEST_CHANNEL_NAME.c_str(), TEST_BROADCAST.c_str());
 
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
@@ -362,9 +362,9 @@ TEST(BroadcastUtilTest, commandAddRemoveSubscription) {
 	// initiate worker thread
 	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), conn));
 	// subscribe to test channel
-	ASSERT_EQ(BroadcastUtil::addSubscription(myConn, TEST_CHANNEL_NAME.c_str(), test_call_back), 1);
+	ASSERT_EQ(BroadcastUtil::instance().addSubscription(myConn, TEST_CHANNEL_NAME.c_str(), test_call_back), 1);
 	// unsubscribe from test channel
-	ASSERT_EQ(BroadcastUtil::removeSubscription(myConn, TEST_CHANNEL_NAME.c_str()), 1);
+	ASSERT_EQ(BroadcastUtil::instance().removeSubscription(myConn, TEST_CHANNEL_NAME.c_str()), 1);
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
 	BroadcastUtil::stopAll(myConn);

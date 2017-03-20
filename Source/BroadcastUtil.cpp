@@ -24,11 +24,23 @@ bool BroadcastUtil::initialized = false;
 pthread_mutex_t BroadcastUtil::mtx = PTHREAD_MUTEX_INITIALIZER;
 
 BroadcastUtil::~BroadcastUtil() {
+	// if it was a mock instance, return no-op
+	if (inst != this) return;
 	stop = true;
 	pthread_join(*worker, NULL);
 	delete workerConn;
 	initialized = false;
 }
+
+BroadcastUtil& BroadcastUtil::instance() {
+	static BroadcastUtil mock = BroadcastUtil();
+	if (!initialized) {
+		// return uninitialized instance and hope for best
+		return mock;
+	}
+	return *inst;
+}
+
 
 bool BroadcastUtil::initializeWithId(const char * appId, int nodeId,
 		RedisConnection * workerConn) {
@@ -39,6 +51,12 @@ bool BroadcastUtil::initializeWithId(const char * appId, int nodeId,
 			static_cast<std::ostringstream*>(&(std::ostringstream() << (nodeId)))->str().c_str(),
 			workerConn);
 #endif
+}
+
+bool BroadcastUtil::initialize(BroadcastUtil* mock) {
+	initialized = true;
+	BroadcastUtil::inst = mock;
+	return true;
 }
 
 bool BroadcastUtil::initialize(const char * appId, const char* salt,
@@ -139,7 +157,7 @@ int BroadcastUtil::publish(RedisConnection& conn, const char* channelName,
 void BroadcastUtil::stopAll(RedisConnection& conn) {
 	if (!BroadcastUtil::isRunning())
 		return;
-	BroadcastUtil::publish(conn, inst->controlChannel.c_str(),
+	BroadcastUtil::inst->publish(conn, inst->controlChannel.c_str(),
 			STOP_COMMAND.c_str());
 	delete BroadcastUtil::inst;
 	BroadcastUtil::inst = NULL;

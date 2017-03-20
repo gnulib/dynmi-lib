@@ -9,10 +9,61 @@
 #include "InstancesUtil.hpp"
 #include "BroadcastUtil.hpp"
 #include "RedisConnection.hpp"
+#include "RedisConnectionTL.hpp"
 #include "RedisResult.hpp"
 #include <string>
 #include <ctime>
 #include <sstream>
+
+InstancesUtil* InstancesUtil::inst = NULL;
+bool InstancesUtil::initialized = false;
+pthread_mutex_t InstancesUtil::mtx = PTHREAD_MUTEX_INITIALIZER;
+
+InstancesUtil::~InstancesUtil() {
+	if (inst == this) initialized = false;
+}
+
+bool InstancesUtil::initialize(const std::string& redisHost, const int redisPort) {
+	if (!initialized) {
+		InstancesUtil::initialize(new InstancesUtil());
+		RedisConnectionTL::initialize(redisHost, redisPort);
+	}
+	return initialized;
+}
+
+bool InstancesUtil::initialize(InstancesUtil* inst) {
+	if (!initialized) {
+		pthread_mutex_lock(&InstancesUtil::mtx);
+		try {
+			// check once more, after we get lock, in case someone else had already initialized
+			// while we were waiting
+			if (!initialized) {
+				InstancesUtil::inst = inst;
+				initialized = true;
+			}
+		} catch (...) {
+			// failed to initialize
+			initialized = false;
+			if (InstancesUtil::inst)
+				delete InstancesUtil::inst;
+			InstancesUtil::inst = NULL;
+		}
+		if (!initialized) {
+			delete inst;
+		}
+		pthread_mutex_unlock(&InstancesUtil::mtx);
+	}
+	return initialized;
+}
+
+InstancesUtil& InstancesUtil::instance() {
+	static InstancesUtil mock = InstancesUtil();
+	if (!initialized) {
+		// return uninitialized instance and hope for best
+		return mock;
+	}
+	return *inst;
+}
 
 /**
  * increment a counter and get value
@@ -77,8 +128,8 @@ std::string channelInstanceDown(const char * appId) {
  */
 int InstancesUtil::registerInstanceUpCallback(RedisConnection& conn,
 		const char* appId, callbackFunc func) {
-	if (!BroadcastUtil::isInitialized()) return -1;
-	return BroadcastUtil::addSubscription(conn, channelInstanceUp(appId).c_str(), func);
+	if (!BroadcastUtil::instance().isInitialized()) return -1;
+	return BroadcastUtil::instance().addSubscription(conn, channelInstanceUp(appId).c_str(), func);
 }
 
 /**
@@ -86,8 +137,8 @@ int InstancesUtil::registerInstanceUpCallback(RedisConnection& conn,
  */
 int InstancesUtil::registerInstanceDownCallback(RedisConnection& conn,
 		const char* appId, callbackFunc func) {
-	if (!BroadcastUtil::isInitialized()) return -1;
-	return BroadcastUtil::addSubscription(conn, channelInstanceDown(appId).c_str(), func);
+	if (!BroadcastUtil::instance().isInitialized()) return -1;
+	return BroadcastUtil::instance().addSubscription(conn, channelInstanceDown(appId).c_str(), func);
 }
 
 int InstancesUtil::refreshNodeDetails(RedisConnection& conn, const char* appId,

@@ -17,20 +17,20 @@ class CdMQUtil {
 	friend class CdMQMessage;
 protected:
 	CdMQUtil() {}
-	virtual ~CdMQUtil() {initialized = false;}
+	virtual ~CdMQUtil();
 
 	// message will unlock the queue when its discarded
 	static bool unlock(CdMQMessage& message);
 
 public:
 	// get an instance of the utility
-	CdMQUtil& instance();
+	static CdMQUtil& instance();
 
 	// initialize the queue
 	static bool initialize(const std::string& redisHost, const int redisPort);
 
 	// UT initialization from mock instance
-	static bool initialize(CdMQUtil* uut);
+	static bool initialize(CdMQUtil* mock);
 
 	// add a message at the back of the named queue
 	bool enQueue(const std::string& appId, const std::string qName, const std::string& message, const std::string& tag="");

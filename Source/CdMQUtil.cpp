@@ -41,6 +41,10 @@ CdMQUtil* CdMQUtil::inst = NULL;
 bool CdMQUtil::initialized = false;
 pthread_mutex_t CdMQUtil::mtx = PTHREAD_MUTEX_INITIALIZER;
 
+CdMQUtil::~CdMQUtil() {
+	if (inst == this) initialized = false;
+}
+
 bool CdMQUtil::initialize(const std::string& redisHost, const int redisPort) {
 	if (!initialized) {
 		CdMQUtil::initialize(new CdMQUtil());
@@ -129,7 +133,7 @@ std::string makeMarkerCommand(const std::string& qName, const int indx) {
 
 bool CdMQUtil::unlock(CdMQMessage& message) {
 	// release the lock on the session tag held by the message
-	if (message.valid && !message.tag.empty() && InstancesUtil::releaseFastLock(RedisConnectionTL::instance(), message.appId.c_str(), makeSessionLockName(message.appId, message.tag).c_str()) != -1) {
+	if (message.valid && !message.tag.empty() && InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), message.appId.c_str(), makeSessionLockName(message.appId, message.tag).c_str()) != -1) {
 		message.valid = false;
 		// we released the lock, so publish a notification about session being active
 		// TODO
@@ -143,7 +147,7 @@ bool CdMQUtil::unlock(CdMQMessage& message) {
 bool CdMQUtil::enQueue(const std::string& appId, const std::string qName, const std::string& message, const std::string& tag) {
 	bool result = false;
 	// get a lock on the queue
-	if (InstancesUtil::getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str(), OP_TTL) != 0) {
+	if (InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str(), OP_TTL) != 0) {
 		return result;
 	}
 	// add message to the back of the channel queue
@@ -164,21 +168,21 @@ bool CdMQUtil::enQueue(const std::string& appId, const std::string qName, const 
 		}
 	}
 	// release lock on the queue
-	InstancesUtil::releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str());
+	InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str());
 	return result;
 }
 
 CdMQMessage CdMQUtil::deQueue(const std::string& appId, const std::string qName, int ttl) {
 	CdMQMessage message = CdMQMessage();
 	// get a lock on the queue
-	if (InstancesUtil::getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str(), OP_TTL) == 0) {
+	if (InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str(), OP_TTL) == 0) {
 		// walk through all sessions in the session queue
 		RedisResult res = RedisConnectionTL::instance().cmd((GETALL_CMD + makeSessionQueueName(appId, qName) + GETALL_INDX).c_str());
 		if (res.resultType() == ARRAY) {
 			for (int i = 0; i < res.arraySize(); i++) {
 				// attempt session lock for the session
 				std::string tag = res.arrayResult(i).strResult();
-				if (InstancesUtil::getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, tag).c_str(), ttl) == 0) {
+				if (InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, tag).c_str(), ttl) == 0) {
 					// fetch the message for this session
 					res = RedisConnectionTL::instance().cmd(makeFetchCommand(appId, qName, i).c_str());
 					if (res.resultType() == STRING) {
@@ -187,9 +191,9 @@ CdMQMessage CdMQUtil::deQueue(const std::string& appId, const std::string qName,
 						message = CdMQMessage(payload, appId, tag);
 
 						// RELIABLY remove the tag from session queue and message from channel queue
-						// as following:
-						// first, mark the item to be removed with MARKER
-						// then remove the occurrence of the MARKER
+						// at the current i'th location as following:
+						// first, set the item on i'th position as MARKER
+						// then remove the occurrence of the item MARKER
 						//
 						// we use this approach instead of removing the item directly because
 						// there is no guarantee that item (specially message) being removed is not
@@ -219,12 +223,12 @@ CdMQMessage CdMQUtil::deQueue(const std::string& appId, const std::string qName,
 			}
 		}
 		// release lock on the queue
-		InstancesUtil::releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str());
+		InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str());
 		// lock on session will be removed when the message goes out of scope
 	}
 	return message;
 }
 
 bool CdMQUtil::registerReadyCallback(const std::string& appId, const std::string qName, void (*callbackFunc)(const char*)) {
-	return BroadcastUtil::addSubscription(RedisConnectionTL::instance(), makeChannelName(appId, qName).c_str(), callbackFunc) != -1;
+	return BroadcastUtil::instance().addSubscription(RedisConnectionTL::instance(), makeChannelName(appId, qName).c_str(), callbackFunc) != -1;
 }

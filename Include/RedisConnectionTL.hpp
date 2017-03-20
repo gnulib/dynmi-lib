@@ -22,9 +22,13 @@ private:
 public:
 	static bool initialize(const std::string& redisHost, const int& redisPort);
 	static RedisConnection& instance();
+	// a UT compatible initialization method
+	static bool initializeTest(RedisConnection* mock);
 
 private:
 	static bool initialized;
+	static bool inTest;
+	static RedisConnection* mock;
 	static std::map<pthread_t, RedisConnection*> pool;
 	static pthread_mutex_t mtx;
 	static std::string redisHost;

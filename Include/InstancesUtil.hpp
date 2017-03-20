@@ -10,6 +10,7 @@
 
 #include<string>
 #include <set>
+#include <pthread.h>
 
 class RedisConnection;
 //typedef void (*callbackFunc)(const char*);
@@ -18,49 +19,63 @@ class RedisConnection;
  * A utility class to provide primitive methods for implementing scalable application instances
  */
 class InstancesUtil {
-private:
-	InstancesUtil();
-	~InstancesUtil();
+protected:
+	InstancesUtil(){};
+	virtual ~InstancesUtil();
 public:
+	// initialize the utility
+	static bool initialize(const std::string& redisHost, const int redisPort);
+
+	// UT initialization from mock instance
+	static bool initialize(InstancesUtil* mock);
+
+	// get reference to an instance
+	static InstancesUtil& instance();
+
 	// increment and get a counter
-	static int incrCounter(RedisConnection& conn, const char* appId, const char* counter);
+	int incrCounter(RedisConnection& conn, const char* appId, const char* counter);
 
 	// decrement and get a counter
-	static int decrCounter(RedisConnection& conn, const char* appId, const char* counter);
+	int decrCounter(RedisConnection& conn, const char* appId, const char* counter);
 
 	// get a new ID for a newly deploying instance of the application
-	static int getNewInstanceId(RedisConnection& conn, const char* appId);
+	int getNewInstanceId(RedisConnection& conn, const char* appId);
 
 	// register a callback method for any new instance notification
-	static int registerInstanceUpCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
+	int registerInstanceUpCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
 
 	// register a callback method for any instance down notification
-	static int registerInstanceDownCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
+	int registerInstanceDownCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
 
 	// refresh node's address details
-	static int refreshNodeDetails(RedisConnection& conn, const char* appId,
+	int refreshNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId, int ttl);
 
 	// publish a node's address details
-	static int publishNodeDetails(RedisConnection& conn, const char* appId,
+	int publishNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId, const char* host, int port, int ttl);
 
 	// get all active nodes for specified appID
-	static std::set<std::string> getAllNodes(RedisConnection& conn, const char* appId);
+	std::set<std::string> getAllNodes(RedisConnection& conn, const char* appId);
 
 	// get a node's address details
-	static int getNodeDetails(RedisConnection& conn, const char* appId,
+	int getNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId, std::string& host, int& port);
 
 	// remove a node's details from system
-	static int removeNodeDetails(RedisConnection& conn, const char* appId,
+	int removeNodeDetails(RedisConnection& conn, const char* appId,
 					const int nodeId);
 
 	// get a fast lock on system
-	static int getFastLock(RedisConnection& conn, const char* appId, const char* lockName, int ttl);
+	int getFastLock(RedisConnection& conn, const char* appId, const char* lockName, int ttl);
 
 	// release the fast lock
-	static int releaseFastLock(RedisConnection& conn, const char* appId, const char* lockName);
+	int releaseFastLock(RedisConnection& conn, const char* appId, const char* lockName);
+
+private:
+	static InstancesUtil* inst;
+	static bool initialized;
+	static pthread_mutex_t mtx;
 };
 
 
