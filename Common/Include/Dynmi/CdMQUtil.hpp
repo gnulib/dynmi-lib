@@ -44,6 +44,7 @@ public:
 private:
 	static CdMQUtil* inst;
 	static bool initialized;
+	static bool isTest;
 	static pthread_mutex_t mtx;
 };
 

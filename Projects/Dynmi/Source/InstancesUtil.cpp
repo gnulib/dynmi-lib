@@ -17,6 +17,7 @@
 
 InstancesUtil* InstancesUtil::inst = NULL;
 bool InstancesUtil::initialized = false;
+bool InstancesUtil::isTest = false;
 pthread_mutex_t InstancesUtil::mtx = PTHREAD_MUTEX_INITIALIZER;
 
 InstancesUtil::~InstancesUtil() {
@@ -25,20 +26,13 @@ InstancesUtil::~InstancesUtil() {
 
 bool InstancesUtil::initialize(const std::string& redisHost, const int redisPort) {
 	if (!initialized) {
-		InstancesUtil::initialize(new InstancesUtil());
-		RedisConnectionTL::initialize(redisHost, redisPort);
-	}
-	return initialized;
-}
-
-bool InstancesUtil::initialize(InstancesUtil* inst) {
-	if (!initialized) {
 		pthread_mutex_lock(&InstancesUtil::mtx);
 		try {
 			// check once more, after we get lock, in case someone else had already initialized
 			// while we were waiting
 			if (!initialized) {
-				InstancesUtil::inst = inst;
+				InstancesUtil::inst = new InstancesUtil();
+				RedisConnectionTL::initialize(redisHost, redisPort);
 				initialized = true;
 			}
 		} catch (...) {
@@ -48,15 +42,20 @@ bool InstancesUtil::initialize(InstancesUtil* inst) {
 				delete InstancesUtil::inst;
 			InstancesUtil::inst = NULL;
 		}
-		if (!initialized) {
-			delete inst;
-		}
 		pthread_mutex_unlock(&InstancesUtil::mtx);
 	}
 	return initialized;
 }
 
+bool InstancesUtil::initialize(InstancesUtil* mock) {
+	isTest = true;
+	inst = mock;
+	initialized = false;
+	return true;
+}
+
 InstancesUtil& InstancesUtil::instance() {
+	if (InstancesUtil::isTest) return *inst;
 	static InstancesUtil mock = InstancesUtil();
 	if (!initialized) {
 		// return uninitialized instance and hope for best

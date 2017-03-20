@@ -39,6 +39,7 @@ const static int OP_TTL = 10;
 
 CdMQUtil* CdMQUtil::inst = NULL;
 bool CdMQUtil::initialized = false;
+bool CdMQUtil::isTest = false;
 pthread_mutex_t CdMQUtil::mtx = PTHREAD_MUTEX_INITIALIZER;
 
 CdMQUtil::~CdMQUtil() {
@@ -47,20 +48,13 @@ CdMQUtil::~CdMQUtil() {
 
 bool CdMQUtil::initialize(const std::string& redisHost, const int redisPort) {
 	if (!initialized) {
-		CdMQUtil::initialize(new CdMQUtil());
-		RedisConnectionTL::initialize(redisHost, redisPort);
-	}
-	return initialized;
-}
-
-bool CdMQUtil::initialize(CdMQUtil* inst) {
-	if (!initialized) {
 		pthread_mutex_lock(&CdMQUtil::mtx);
 		try {
 			// check once more, after we get lock, in case someone else had already initialized
 			// while we were waiting
 			if (!initialized) {
-				CdMQUtil::inst = inst;
+				CdMQUtil::inst = new CdMQUtil();
+				RedisConnectionTL::initialize(redisHost, redisPort);
 				initialized = true;
 			}
 		} catch (...) {
@@ -70,15 +64,20 @@ bool CdMQUtil::initialize(CdMQUtil* inst) {
 				delete CdMQUtil::inst;
 			CdMQUtil::inst = NULL;
 		}
-		if (!initialized) {
-			delete inst;
-		}
 		pthread_mutex_unlock(&CdMQUtil::mtx);
 	}
 	return initialized;
 }
 
+bool CdMQUtil::initialize(CdMQUtil* mock) {
+	isTest = true;
+	inst = mock;
+	initialized = false;
+	return true;
+}
+
 CdMQUtil& CdMQUtil::instance() {
+	if (isTest) return *inst;
 	static CdMQUtil mock = CdMQUtil();
 	if (!initialized) {
 		// return uninitialized instance and hope for best
