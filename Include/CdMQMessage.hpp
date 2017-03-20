@@ -19,7 +19,7 @@ protected:
 	CdMQMessage();
 	// only the CdMQUtil can create a new message instance
 	// because it will also lock the queue with this message
-	CdMQMessage(const std::string& data, const std::string& appId, const std::string& qName);
+	CdMQMessage(const std::string& data, const std::string& appId, const std::string& tag);
 
 public:
 	// when object goes out of scope, if it holds the lock on queue then
@@ -39,7 +39,7 @@ public:
 	bool isValid() const {return valid;}
 
 private:
-	std::string qName;
+	std::string tag;
 	std::string appId;
 	std::string data;
 	bool valid;
