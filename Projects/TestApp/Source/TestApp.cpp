@@ -12,10 +12,10 @@
 #include <iostream>
 #include <cstring>
 #include <sstream>
-#include "RedisConnection.hpp"
-#include "RedisResult.hpp"
-#include "InstancesUtil.hpp"
-#include "BroadcastUtil.hpp"
+#include "Dynmi/RedisConnection.hpp"
+#include "Dynmi/RedisResult.hpp"
+#include "Dynmi/InstancesUtil.hpp"
+#include "Dynmi/BroadcastUtil.hpp"
 
 using namespace std;
 

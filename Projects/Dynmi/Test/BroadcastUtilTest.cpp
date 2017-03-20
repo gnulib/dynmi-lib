@@ -7,11 +7,11 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "BroadcastUtil.hpp"
-#include "RedisResult.hpp"
+#include "Dynmi/BroadcastUtil.hpp"
+#include "Dynmi/RedisResult.hpp"
+#include "Dynmi/RedisConnection.hpp"
+#include "Dynmi/DynmiGlobals.hpp"
 #include "RedisReplyFixtures.hpp"
-#include "RedisConnection.hpp"
-#include "DynmiGlobals.hpp"
 #include <string>
 #include <ctime>
 

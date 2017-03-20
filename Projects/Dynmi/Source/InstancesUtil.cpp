@@ -5,12 +5,12 @@
  *      Author: bhadoria
  */
 
-#include "DynmiGlobals.hpp"
-#include "InstancesUtil.hpp"
-#include "BroadcastUtil.hpp"
-#include "RedisConnection.hpp"
-#include "RedisConnectionTL.hpp"
-#include "RedisResult.hpp"
+#include "Dynmi/DynmiGlobals.hpp"
+#include "Dynmi/InstancesUtil.hpp"
+#include "Dynmi/BroadcastUtil.hpp"
+#include "Dynmi/RedisConnection.hpp"
+#include "Dynmi/RedisConnectionTL.hpp"
+#include "Dynmi/RedisResult.hpp"
 #include <string>
 #include <ctime>
 #include <sstream>

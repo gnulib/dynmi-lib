@@ -8,13 +8,13 @@
 
 
 
-#include "CdMQMessage.hpp"
-#include "CdMQUtil.hpp"
+#include "Dynmi/CdMQMessage.hpp"
+#include "Dynmi/CdMQUtil.hpp"
 #include <iostream>
 #include <pthread.h>
 #include <string>
 #include <map>
-#include "RedisConnection.hpp"
+#include "Dynmi/RedisConnection.hpp"
 
 #include "gtest/gtest.h"
 using namespace ::testing;

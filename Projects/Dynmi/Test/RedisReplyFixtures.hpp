@@ -9,7 +9,7 @@
 #define TEST_REDISREPLYFIXTURES_HPP_
 
 #include "hiredis/hiredis.h"
-#include "RedisResult.hpp"
+#include "Dynmi/RedisResult.hpp"
 
 const char * TEST_STRING_VALUE = "test response";
 const char * TEST_STRING_ERR = "this is error message";

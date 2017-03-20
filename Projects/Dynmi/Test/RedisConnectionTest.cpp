@@ -5,8 +5,8 @@
  *      Author: bhadoria
  */
 
-#include "RedisResult.hpp"
-#include "RedisConnection.hpp"
+#include "Dynmi/RedisResult.hpp"
+#include "Dynmi/RedisConnection.hpp"
 #include "gtest/gtest.h"
 
 TEST(RedisConnectionTest, ReportsConnectionError) {

@@ -5,8 +5,8 @@
  *      Author: bhadoria
  */
 
-#include "RedisConnectionTL.hpp"
-#include "RedisConnection.hpp"
+#include "Dynmi/RedisConnectionTL.hpp"
+#include "Dynmi/RedisConnection.hpp"
 
 bool RedisConnectionTL::initialized = false;
 bool RedisConnectionTL::inTest = false;

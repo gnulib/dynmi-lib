@@ -5,11 +5,11 @@
  *      Author: bhadoria
  */
 
-#include "BroadcastUtil.hpp"
-#include "RedisConnection.hpp"
-#include "RedisResult.hpp"
-#include "ChannelMessage.hpp"
-#include "DynmiGlobals.hpp"
+#include "Dynmi/BroadcastUtil.hpp"
+#include "Dynmi/RedisConnection.hpp"
+#include "Dynmi/RedisResult.hpp"
+#include "Dynmi/ChannelMessage.hpp"
+#include "Dynmi/DynmiGlobals.hpp"
 #include <cstdlib>
 #include <unistd.h>
 #include <sstream>
