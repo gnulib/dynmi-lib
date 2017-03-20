@@ -11,36 +11,42 @@
 using namespace ::testing;
 
 TEST(CdMQPayloadTest, fromJson) {
-	CdMQPayload uut = CdMQPayload::fromJson("{\"tag\":\"123\",\"message\":\"test message\"}");
+	CdMQPayload uut = CdMQPayload::fromJson("{\"tag\":\"123\",\"channel\":\"test:channel\",\"message\":\"test message\"}");
 	ASSERT_TRUE(uut.isValid());
     ASSERT_STREQ(uut.getTag().c_str(), "123");
     ASSERT_STREQ(uut.getMessage().c_str(), "test message");
 }
 
 TEST(CdMQPayloadTest, fromJsonComplexObject) {
-	CdMQPayload uut = CdMQPayload::fromJson("{\"tag\" : \"123\",\n\"message\" : \"{\"f1\" : \"fff\", \"f2\" : \"aaaa\"}\"}");
+	CdMQPayload uut = CdMQPayload::fromJson("{\"tag\" : \"123\", \n\"channel\":\"test:channel\", \n\"message\" : \"{\"f1\" : \"fff\", \"f2\" : \"aaaa\"}\"}");
 	ASSERT_TRUE(uut.isValid());
     ASSERT_STREQ(uut.getTag().c_str(), "123");
     ASSERT_STREQ(uut.getMessage().c_str(), "{\"f1\" : \"fff\", \"f2\" : \"aaaa\"}");
 }
 
 TEST(CdMQPayloadTest, fromJsonNoStart) {
-	CdMQPayload uut = CdMQPayload::fromJson("\"tag\":\"123\",\"message\":\"test message\"}");
+	CdMQPayload uut = CdMQPayload::fromJson("\"tag\":\"123\",\"channel\":\"test:channel\",\"message\":\"test message\"}");
 	ASSERT_FALSE(uut.isValid());
     ASSERT_STREQ(uut.getTag().c_str(), "");
     ASSERT_STREQ(uut.getMessage().c_str(), "");
 }
 
+TEST(CdMQPayloadTest, fromJsonNoChannel) {
+	CdMQPayload uut = CdMQPayload::fromJson("{\"tag\":\"123\",\"message\":\"test message\"}");
+	ASSERT_FALSE(uut.isValid());
+    ASSERT_STREQ(uut.getChannel().c_str(), "");
+}
+
 TEST(CdMQPayloadTest, toJson) {
-	CdMQPayload uut = CdMQPayload("123", "test message");
+	CdMQPayload uut = CdMQPayload("test:channel", "123", "test message");
     ASSERT_STREQ(uut.getTag().c_str(), "123");
-    ASSERT_STREQ(uut.toJson().c_str(), "{\"tag\":\"123\",\"message\":\"test message\"}");
+    ASSERT_STREQ(uut.toJson().c_str(), "{\"tag\":\"123\",\"channel\":\"test:channel\",\"message\":\"test message\"}");
 }
 
 TEST(CdMQPayloadTest, toJsonComplexObject) {
-	CdMQPayload uut = CdMQPayload("123", "{\"f1\" : \"fff\", \"f2\" : \"aaaa\"}");
+	CdMQPayload uut = CdMQPayload("test:channel", "123", "{\"f1\" : \"fff\", \"f2\" : \"aaaa\"}");
     ASSERT_STREQ(uut.getTag().c_str(), "123");
-    ASSERT_STREQ(uut.toJson().c_str(), "{\"tag\":\"123\",\"message\":\"{\"f1\" : \"fff\", \"f2\" : \"aaaa\"}\"}");
+    ASSERT_STREQ(uut.toJson().c_str(), "{\"tag\":\"123\",\"channel\":\"test:channel\",\"message\":\"{\"f1\" : \"fff\", \"f2\" : \"aaaa\"}\"}");
 }
 
 int main(int argc, char **argv) {

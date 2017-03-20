@@ -25,10 +25,10 @@ public:
 	MOCK_METHOD2(getNewInstanceId, int (RedisConnection& conn, const char* appId));
 
 	// register a callback method for any new instance notification
-	MOCK_METHOD3(registerInstanceUpCallback, int (RedisConnection& conn, const char* appId, void (*func)(const char*)));
+	MOCK_METHOD3(registerInstanceUpCallback, int (RedisConnection& conn, const char* appId, BroadcastUtil::callbackFunc));
 
 	// register a callback method for any instance down notification
-	MOCK_METHOD3(registerInstanceDownCallback, int (RedisConnection& conn, const char* appId, void (*func)(const char*)));
+	MOCK_METHOD3(registerInstanceDownCallback, int (RedisConnection& conn, const char* appId, BroadcastUtil::callbackFunc));
 
 	// refresh node's address details
 	MOCK_METHOD4(refreshNodeDetails, int (RedisConnection& conn, const char* appId, const int nodeId, int ttl));

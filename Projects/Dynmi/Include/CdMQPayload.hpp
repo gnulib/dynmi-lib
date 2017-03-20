@@ -17,16 +17,18 @@ protected:
 
 public:
 	CdMQPayload(const CdMQPayload& other);
-	CdMQPayload(const std::string& tag, const std::string& message);
+	CdMQPayload(const std::string& channel, const std::string& tag, const std::string& message);
 	std::string toJson() const;
 	static CdMQPayload fromJson(const std::string& json);
 
 	bool isValid() const {return valid;}
 	const std::string& getTag() const {return tag;}
+	const std::string& getChannel() const {return channel;}
 	const std::string& getMessage() const {return message;}
 
 protected:
 	std::string tag;
+	std::string channel;
 	std::string message;
 	bool valid;
 };

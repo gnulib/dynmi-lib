@@ -30,7 +30,7 @@ RedisResult getByDelay(RedisResult value) {
 	return value;
 }
 
-void test_call_back(const char* msg) {
+void test_call_back(const char* channel, const char* msg) {
 	std::cout << "##### Received message: " << msg << std::endl;
 }
 

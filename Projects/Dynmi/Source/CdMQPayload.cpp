@@ -13,19 +13,22 @@ static const std::string COMMA = ",";
 static const std::string START_OBJ = "{";
 static const std::string END_OBJ = "}";
 static const std::string TAG = QUOTE + "tag" + QUOTE;
+static const std::string CHANNEL = QUOTE + "channel" + QUOTE;
 static const std::string MESSAGE = QUOTE + "message" + QUOTE;
 
 CdMQPayload CdMQPayload::fromJson(const std::string& json) {
 	return CdMQPayload(json);
 }
 
-CdMQPayload::CdMQPayload(const std::string& tag, const std::string& message) {
+CdMQPayload::CdMQPayload(const std::string& channel, const std::string& tag, const std::string& message) {
+	this->channel = channel;
 	this->tag = tag;
 	this->message = message;
 	valid = true;
 }
 
 CdMQPayload::CdMQPayload(const CdMQPayload& other) {
+	this->channel = other.channel;
 	this->tag = other.tag;
 	this->message = other.message;
 	valid = other.valid;
@@ -62,6 +65,29 @@ CdMQPayload::CdMQPayload(const std::string& json) {
 	this->tag = json.substr(pos, end - pos);
 	pos = end + 1;
 
+	// find "channel"
+	pos = json.find(CHANNEL, pos);
+	if (pos == std::string::npos) return;
+	pos++;
+
+	// find ":"
+	pos = json.find_first_of(COLON, pos);
+	if (pos == std::string::npos) return;
+	pos++;
+
+	// find starting quote for channel value
+	pos = json.find_first_of(QUOTE, pos);
+	if (pos == std::string::npos) return;
+	pos++;
+
+	// find ending quote for channel value
+	end = json.find_first_of(QUOTE, pos);
+	if (end == std::string::npos) return;
+
+	// extract tag from pos:end
+	this->channel = json.substr(pos, end - pos);
+	pos = end + 1;
+
 	// find "message"
 	pos = json.find(MESSAGE, pos);
 	if (pos == std::string::npos) return;
@@ -91,5 +117,5 @@ CdMQPayload::CdMQPayload(const std::string& json) {
 }
 
 std::string CdMQPayload::toJson() const {
-	return START_OBJ + TAG + COLON + QUOTE + tag + QUOTE + COMMA + MESSAGE + COLON + QUOTE + message + QUOTE + END_OBJ;
+	return START_OBJ + TAG + COLON + QUOTE + tag + QUOTE + COMMA +  CHANNEL + COLON + QUOTE + channel + QUOTE + COMMA + MESSAGE + COLON + QUOTE + message + QUOTE + END_OBJ;
 }

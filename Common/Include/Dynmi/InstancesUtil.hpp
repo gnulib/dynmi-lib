@@ -9,11 +9,12 @@
 #define INCLUDE_INSTANCESUTIL_HPP_
 
 #include<string>
+#include <map>
 #include <set>
 #include <pthread.h>
+#include "Dynmi/BroadcastUtil.hpp"
 
 class RedisConnection;
-//typedef void (*callbackFunc)(const char*);
 
 /**
  * A utility class to provide primitive methods for implementing scalable application instances
@@ -22,6 +23,9 @@ class InstancesUtil {
 protected:
 	InstancesUtil(){};
 	virtual ~InstancesUtil();
+
+	// my callback method for listening to all instance up/down notifications
+	static void myCallbackFunc(const char*, const char*);
 public:
 	// initialize the utility
 	static bool initialize(const std::string& redisHost, const int redisPort);
@@ -42,10 +46,10 @@ public:
 	virtual int getNewInstanceId(RedisConnection& conn, const char* appId);
 
 	// register a callback method for any new instance notification
-	virtual int registerInstanceUpCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
+	virtual int registerInstanceUpCallback(RedisConnection& conn, const char* appId, BroadcastUtil::callbackFunc);
 
 	// register a callback method for any instance down notification
-	virtual int registerInstanceDownCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
+	virtual int registerInstanceDownCallback(RedisConnection& conn, const char* appId, BroadcastUtil::callbackFunc);
 
 	// refresh node's address details
 	virtual int refreshNodeDetails(RedisConnection& conn, const char* appId,
@@ -77,6 +81,7 @@ private:
 	static bool initialized;
 	static bool isTest;
 	static pthread_mutex_t mtx;
+	std::map<std::string,std::set<BroadcastUtil::callbackFunc> > myCallbacks;
 };
 
 

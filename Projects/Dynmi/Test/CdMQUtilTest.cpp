@@ -17,6 +17,7 @@
 #include "RedisReplyFixtures.hpp"
 #include "MockRedisConnection.hpp"
 #include "MockInstancesUtil.hpp"
+#include "MockBroadcastUtil.hpp"
 #include <string>
 #include <ctime>
 
@@ -27,17 +28,18 @@ static const std::string TEST_TAG = "123";
 static const std::string TEST_LOCKED_TAG = "999";
 static const std::string TEST_CHANNEL_NAME = "test:channel";
 static const std::string TEST_MESSAGE = "\"this is a test\"";
-static const std::string TEST_LOCKED_PAYLOAD = "{\"tag\":\"" + TEST_LOCKED_TAG + "\",\"message\":\"" + "locked message" + "\"}";
-static const std::string TEST_PAYLOAD = "{\"tag\":\"" + TEST_TAG + "\",\"message\":\"" + TEST_MESSAGE + "\"}";
+static const std::string TEST_LOCKED_PAYLOAD = "{\"tag\":\"" + TEST_LOCKED_TAG + "\",\"channel\":\"" + TEST_CHANNEL_NAME + "\",\"message\":\"" + "locked message" + "\"}";
+static const std::string TEST_PAYLOAD = "{\"tag\":\"" + TEST_TAG + + "\",\"channel\":\"" + TEST_CHANNEL_NAME + "\",\"message\":\"" + TEST_MESSAGE + "\"}";
 const static std::string CDMQ = "CDMQ:APP:";
 const static std::string CHANNEL_LOCK = ":LOCK:CHANNEL:";
 const static std::string SESSION_LOCK = ":LOCK:SESSION:";
+static const std::string CHANNEL_ACTIVE = "CHANNEL_ACTIVE";
 
 
 TEST(CdMQUtilTest, initialize) {
 	MockRedisConnection* conn = new MockRedisConnection(NULL,0);
 	RedisConnectionTL::initializeTest(conn);
-	ASSERT_TRUE(CdMQUtil::initialize("",0));
+	ASSERT_TRUE(CdMQUtil::initialize(TEST_APP_ID,"",0));
 	delete conn;
 }
 
@@ -55,28 +57,33 @@ TEST(CdMQUtilTest, testMockInstanceUtil) {
 
 TEST(CdMQUtilTest, enQueue) {
 	MockRedisConnection* conn = new MockRedisConnection(NULL,0);
-	MockInstancesUtil* mIU = new MockInstancesUtil();
 	RedisConnectionTL::initializeTest(conn);
+	MockInstancesUtil* mIU = new MockInstancesUtil();
 	InstancesUtil::initialize(mIU);
+	MockBroadcastUtil* mBU = new MockBroadcastUtil();
+	BroadcastUtil::initialize(mBU);
 
 	EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
 		.Times(1)
 		.WillOnce(Return(0));
-	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
-		.Times(1)
-		.WillOnce(Return(0));
-//	Matcher<std::string> args[] = {Eq("RPUSH "), _, Eq(TEST_MESSAGE)};
-//	std::string args[] = {"RPUSH ", "", TEST_MESSAGE};
-//	EXPECT_CALL(*conn, cmdArgv(3,ElementsAre(Eq(std::string("RPUSH ")), _, Eq(TEST_MESSAGE))))
+
+	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(TEST_CHANNEL_NAME.c_str()), StrEq(CHANNEL_ACTIVE.c_str())))
+	.Times(1)
+	.WillOnce(Return(1));
+
 	EXPECT_CALL(*conn, cmdArgv(3,_))
-//	.With(Args<1,1>(ElementsAreArray(args,3)))
 	.Times(1)
 	.WillOnce(Return(RedisResult()));
 
-	CdMQUtil::initialize("",0);
+	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
+		.Times(1)
+		.WillOnce(Return(0));
+
+	CdMQUtil::initialize(TEST_APP_ID,"",0);
 	CdMQUtil::instance().enQueue(TEST_APP_ID, TEST_CHANNEL_NAME, TEST_MESSAGE, TEST_TAG);
 	delete conn;
 	delete mIU;
+	delete mBU;
 }
 
 TEST(CdMQUtilTest, deQueue) {
@@ -84,44 +91,66 @@ TEST(CdMQUtilTest, deQueue) {
 	MockInstancesUtil* mIU = new MockInstancesUtil();
 	RedisConnectionTL::initializeTest(conn);
 	InstancesUtil::initialize(mIU);
-	CdMQUtil::initialize("",0);
+	CdMQUtil::initialize(TEST_APP_ID,"",0);
+	MockBroadcastUtil* mBU = new MockBroadcastUtil();
+	BroadcastUtil::initialize(mBU);
 
-	EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
+	{
+		InSequence dummy;
+
+		// first we want to acquire lock for channel leader selection (only 1 app instance should get next message)
+		EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
+			.Times(1)
+			.WillOnce(Return(0));
+
+		// then we want to get all current messages in the queue
+		redisReply** values = new redisReply*[1];
+		values[0] = getStringReply(TEST_PAYLOAD.c_str());
+		EXPECT_CALL(*conn, cmd(ContainsRegex("LRANGE .*")))
 		.Times(1)
-		.WillOnce(Return(0));
-	EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str()), Eq(5)))
+		.WillOnce(Return(getArrayResult(1,values)));
+
+		// we want to attempt getting lock on the session/tag of the message
+		EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str()), Eq(5)))
+			.Times(1)
+			.WillOnce(Return(0));
+
+		// we mark the message in queue with TOMBSTONE
+		EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
 		.Times(1)
-		.WillOnce(Return(0));
+		.WillOnce(Return(RedisResult()));
 
-	redisReply** values = new redisReply*[1];
-	values[0] = getStringReply(TEST_PAYLOAD.c_str());
-	EXPECT_CALL(*conn, cmd(StartsWith("LRANGE")))
-	.Times(1)
-	.WillOnce(Return(getArrayResult(1,values)));
-
-	EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
-	.Times(1)
-	.WillOnce(Return(RedisResult()));
-
-	EXPECT_CALL(*conn, cmdArgv(4,_))
-	.Times(1)
-	.WillOnce(Return(RedisResult()));
-
-	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str())))
+		// delete the actual TOMBSTONE
+		EXPECT_CALL(*conn, cmdArgv(4,_))
 		.Times(1)
-		.WillOnce(Return(0));
-	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
+		.WillOnce(Return(RedisResult()));
+
+		// release lock on the channel
+		EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
+			.Times(1)
+			.WillOnce(Return(0));
+
+		// release session/tag lock once message is out of scope
+		EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str())))
+			.Times(1)
+			.WillOnce(Return(0));
+
+		// publish channel active after current message processing finishes
+		EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(TEST_CHANNEL_NAME.c_str()), StrEq(CHANNEL_ACTIVE.c_str())))
 		.Times(1)
-		.WillOnce(Return(0));
+		.WillOnce(Return(1));
+	}
+
 
 	// session lock is released only when message goes out of scope
 	{
-		CdMQMessage message = CdMQUtil::instance().deQueue(TEST_APP_ID, TEST_CHANNEL_NAME,5);
+		CdMQMessage message = CdMQUtil::instance().deQueue(TEST_CHANNEL_NAME,5);
 		ASSERT_TRUE(message.isValid());
 		ASSERT_STREQ(message.getData().c_str(), TEST_MESSAGE.c_str());
 	}
 	delete conn;
 	delete mIU;
+	delete mBU;
 }
 
 TEST(CdMQUtilTest, deQueue2nd) {
@@ -129,7 +158,9 @@ TEST(CdMQUtilTest, deQueue2nd) {
 	MockInstancesUtil* mIU = new MockInstancesUtil();
 	RedisConnectionTL::initializeTest(conn);
 	InstancesUtil::initialize(mIU);
-	CdMQUtil::initialize("",0);
+	CdMQUtil::initialize(TEST_APP_ID,"",0);
+	MockBroadcastUtil* mBU = new MockBroadcastUtil();
+	BroadcastUtil::initialize(mBU);
 
 	EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
 		.Times(1)
@@ -159,18 +190,24 @@ TEST(CdMQUtilTest, deQueue2nd) {
 	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str())))
 		.Times(1)
 		.WillOnce(Return(0));
+
 	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
 		.Times(1)
 		.WillOnce(Return(0));
 
+	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(TEST_CHANNEL_NAME.c_str()), StrEq(CHANNEL_ACTIVE.c_str())))
+	.Times(1)
+	.WillOnce(Return(1));
+
 	// session lock is released only when message goes out of scope
 	{
-		CdMQMessage message = CdMQUtil::instance().deQueue(TEST_APP_ID, TEST_CHANNEL_NAME,5);
+		CdMQMessage message = CdMQUtil::instance().deQueue(TEST_CHANNEL_NAME,5);
 		ASSERT_TRUE(message.isValid());
 		ASSERT_STREQ(message.getData().c_str(), TEST_MESSAGE.c_str());
 	}
 	delete conn;
 	delete mIU;
+	delete mBU;
 }
 
 TEST(CdMQUtilTest, deQueueAllLocked) {
@@ -178,7 +215,9 @@ TEST(CdMQUtilTest, deQueueAllLocked) {
 	MockInstancesUtil* mIU = new MockInstancesUtil();
 	RedisConnectionTL::initializeTest(conn);
 	InstancesUtil::initialize(mIU);
-	CdMQUtil::initialize("",0);
+	CdMQUtil::initialize(TEST_APP_ID,"",0);
+	MockBroadcastUtil* mBU = new MockBroadcastUtil();
+	BroadcastUtil::initialize(mBU);
 
 	EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
 		.Times(1)
@@ -209,14 +248,18 @@ TEST(CdMQUtilTest, deQueueAllLocked) {
 		.Times(1)
 		.WillOnce(Return(0));
 
+	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(TEST_CHANNEL_NAME.c_str()), StrEq(CHANNEL_ACTIVE.c_str())))
+	.Times(0);
+
 	// session lock is released only when message goes out of scope
 	{
-		CdMQMessage message = CdMQUtil::instance().deQueue(TEST_APP_ID, TEST_CHANNEL_NAME,5);
+		CdMQMessage message = CdMQUtil::instance().deQueue(TEST_CHANNEL_NAME,5);
 		ASSERT_FALSE(message.isValid());
 		ASSERT_STRNE(message.getData().c_str(), TEST_MESSAGE.c_str());
 	}
 	delete conn;
 	delete mIU;
+	delete mBU;
 }
 
 int main(int argc, char **argv) {

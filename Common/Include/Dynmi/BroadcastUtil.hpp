@@ -22,7 +22,6 @@ static std::string COMMAND_DELIM = "\"";
 static std::string ADD_COMMAND = "ADD_CHANNEL ";
 static std::string REMOVE_COMMAND = "REMOVE_CHANNEL ";
 static std::string STOP_COMMAND = "STOP";
-typedef void (*callbackFunc)(const char*);
 
 class BroadcastUtil {
 protected:
@@ -55,8 +54,9 @@ public:
 	// publish a message to broadcast on named channel
 	virtual int publish(RedisConnection& conn, const char* channelName, const char* message);
 
+	typedef void (*callbackFunc)(const char* channel, const char* notification);
 	// subscribe this instance to receive messages published on named channel
-	virtual int addSubscription(RedisConnection& conn, const char* channelName, callbackFunc);
+	virtual int addSubscription(RedisConnection& conn, const char* channelName, BroadcastUtil::callbackFunc);
 
 	// remove subscription of this instance from named channel
 	virtual int removeSubscription(RedisConnection& conn, const char* channelName);
@@ -71,6 +71,7 @@ private:
 private:
 	static BroadcastUtil* inst;
 	static bool initialized;
+	static bool isTest;
 	static pthread_mutex_t mtx;
 	pthread_t* worker;
 	RedisConnection* workerConn;

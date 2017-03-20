@@ -8,8 +8,8 @@
 #include "Dynmi/CdMQMessage.hpp"
 #include "Dynmi/CdMQUtil.hpp"
 
-CdMQMessage::CdMQMessage(const std::string& data, const std::string& appId, const std::string& tag)
-	: tag(tag), appId(appId), data(data), valid(true){
+CdMQMessage::CdMQMessage(const std::string& data, const std::string& channelName, const std::string& tag)
+	: tag(tag), channelName(channelName), data(data), valid(true){
 }
 
 CdMQMessage::CdMQMessage()
@@ -28,7 +28,7 @@ CdMQMessage::CdMQMessage(const CdMQMessage& other) {
 
 void CdMQMessage::operator=(const CdMQMessage& other) {
 	this->data = other.data;
-	this->appId = other.appId;
+	this->channelName = other.channelName;
 	this->tag = other.tag;
 	this->valid = true;
 	((CdMQMessage&)other).valid = false;

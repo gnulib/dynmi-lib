@@ -46,7 +46,7 @@ void printResult(const RedisResult& res) {
 string payload;
 bool hasPayload = false;
 
-void myNewInstanceCallback(const char* nodeId) {
+void myNewInstanceCallback(const char* appId, const char* nodeId) {
 	// skip if notification is about this instance
 #if __cplusplus >= 201103L
 	int id = stol(nodeId);
@@ -55,15 +55,15 @@ void myNewInstanceCallback(const char* nodeId) {
 	istringstream(nodeId) >> id;
 #endif
 	if (id == myNodeId) return ;
-	cerr << "NOTIFICATION: new instance [" << nodeId << "] for application started" << endl;
+	cerr << "NOTIFICATION: new instance [" << nodeId << "] for application [" << appId << "] started" << endl;
 }
 
-void myInstanceDownCallback(const char* nodeId) {
-	cerr << "NOTIFICATION: instance [" << nodeId << "] for application stopped" << endl;
+void myInstanceDownCallback(const char* appId, const char* nodeId) {
+	cerr << "NOTIFICATION: instance [" << nodeId << "] for application [" << appId << "] stopped" << endl;
 }
 
-void myCallback(const char* msg) {
-	cerr << "CALL BACK: " << msg << endl;
+void myCallback(const char* channel, const char* msg) {
+	cerr << "CALL BACK [" << channel << "]: " << msg << endl;
 	payload = string(msg);
 //	hasPayload = true;
 }

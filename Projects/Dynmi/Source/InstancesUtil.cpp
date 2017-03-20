@@ -123,21 +123,42 @@ std::string channelInstanceDown(const char * appId) {
 }
 
 /**
+ * my own call back handler to marshal notifications before invoking registered callbacks
+ */
+void InstancesUtil::myCallbackFunc(const char* channel, const char* nodeId) {
+	std::set<BroadcastUtil::callbackFunc> callbacks = inst->myCallbacks[channel];
+	std::string appId = channel;
+	size_t end = appId.find(":CHANNELS:INSTANCE_");
+	if (end == std::string::npos) return;
+	size_t start = appId.find(":", NAMESPACE_PREFIX.length());
+	if (start == std::string::npos) return;
+	start++;
+	if (start >= end) return;
+	appId = appId.substr(start, end-start);
+	for (std::set<BroadcastUtil::callbackFunc>::iterator callback = callbacks.begin();
+			callback != callbacks.end(); ++callback) {
+		(*callback)(appId.c_str(), nodeId);
+	}
+}
+
+/**
  * register a callback method to be notified whenever a new instance for this application comes up
  */
 int InstancesUtil::registerInstanceUpCallback(RedisConnection& conn,
-		const char* appId, callbackFunc func) {
+		const char* appId, BroadcastUtil::callbackFunc func) {
 	if (!BroadcastUtil::instance().isInitialized()) return -1;
-	return BroadcastUtil::instance().addSubscription(conn, channelInstanceUp(appId).c_str(), func);
+	inst->myCallbacks[channelInstanceUp(appId)].insert(func);
+	return BroadcastUtil::instance().addSubscription(conn, channelInstanceUp(appId).c_str(), myCallbackFunc);
 }
 
 /**
  * register a callback method to be notified whenever a instance for this application goes down
  */
 int InstancesUtil::registerInstanceDownCallback(RedisConnection& conn,
-		const char* appId, callbackFunc func) {
+		const char* appId, BroadcastUtil::callbackFunc func) {
 	if (!BroadcastUtil::instance().isInitialized()) return -1;
-	return BroadcastUtil::instance().addSubscription(conn, channelInstanceDown(appId).c_str(), func);
+	inst->myCallbacks[channelInstanceDown(appId)].insert(func);
+	return BroadcastUtil::instance().addSubscription(conn, channelInstanceDown(appId).c_str(), myCallbackFunc);
 }
 
 int InstancesUtil::refreshNodeDetails(RedisConnection& conn, const char* appId,

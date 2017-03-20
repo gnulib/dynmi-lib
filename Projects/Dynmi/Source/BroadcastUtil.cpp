@@ -20,10 +20,11 @@
 
 BroadcastUtil* BroadcastUtil::inst = NULL;
 bool BroadcastUtil::initialized = false;
-//pthread_mutex_t BroadcastUtil::mtx = pthread_mutex_t();
+bool BroadcastUtil::isTest = false;
 pthread_mutex_t BroadcastUtil::mtx = PTHREAD_MUTEX_INITIALIZER;
 
 BroadcastUtil::~BroadcastUtil() {
+	if (isTest) return;
 	// if it was a mock instance, return no-op
 	if (inst != this) return;
 	stop = true;
@@ -33,6 +34,7 @@ BroadcastUtil::~BroadcastUtil() {
 }
 
 BroadcastUtil& BroadcastUtil::instance() {
+	if (isTest) return *inst;
 	static BroadcastUtil mock = BroadcastUtil();
 	if (!initialized) {
 		// return uninitialized instance and hope for best
@@ -54,7 +56,8 @@ bool BroadcastUtil::initializeWithId(const char * appId, int nodeId,
 }
 
 bool BroadcastUtil::initialize(BroadcastUtil* mock) {
-	initialized = true;
+	initialized = false;
+	isTest = true;
 	BroadcastUtil::inst = mock;
 	return true;
 }
@@ -120,7 +123,7 @@ std::string BroadcastUtil::getControlChannel() {
 }
 
 int BroadcastUtil::addSubscription(RedisConnection& conn,
-		const char* channelName, callbackFunc func) {
+		const char* channelName, BroadcastUtil::callbackFunc func) {
 	if (!BroadcastUtil::isRunning() || channelName == NULL
 			|| std::strlen(channelName) == 0)
 		return -1;
@@ -172,7 +175,7 @@ void BroadcastUtil::notifyCallbacks(std::string channel, std::string payload) {
 	std::set<callbackFunc> callbacks = inst->myCallbacks[channel];
 	for (std::set<callbackFunc>::iterator callback = callbacks.begin();
 			callback != callbacks.end(); ++callback) {
-		(*callback)(payload.c_str());
+		(*callback)(channel.c_str(), payload.c_str());
 	}
 }
 
