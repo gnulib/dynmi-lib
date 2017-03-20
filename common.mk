@@ -15,3 +15,12 @@ $(GMOCK_LIB): $(GTEST_LIB)
 	mkdir -p $(LIBS_DIR)
 	cd $(GMOCK_DIR)/make && $(MAKE)
 	cp -f $(GMOCK_DIR)/make/$(GMOCK_LIB) $(LIBS_DIR)
+
+clean:
+	cd $(GTEST_DIR)/make && $(MAKE) clean
+	cd $(GMOCK_DIR)/make && $(MAKE) clean
+	cd $(HIREDIS_DIR) && $(MAKE) clean
+	rm -rf $(LIBS_DIR)/*
+	rm -rf $(OBJS_DIR)/*
+	rm -rf $(BINS_DIR)/*
+	rm -rf $(TESTS_DIR)/*
