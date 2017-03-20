@@ -7,8 +7,8 @@
 
 #include <cstddef>
 #include <string>
-#include "RedisConnection.hpp"
-#include "RedisResult.hpp"
+#include "Dynmi/RedisConnection.hpp"
+#include "Dynmi/RedisResult.hpp"
 #include "hiredis/hiredis.h"
 #include <iostream>
 

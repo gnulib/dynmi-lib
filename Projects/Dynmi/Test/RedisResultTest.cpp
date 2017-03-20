@@ -5,7 +5,7 @@
  *      Author: bhadoria
  */
 
-#include "RedisResult.hpp"
+#include "Dynmi/RedisResult.hpp"
 #include "hiredis/hiredis.h"
 #include "gtest/gtest.h"
 #include "RedisReplyFixtures.hpp"

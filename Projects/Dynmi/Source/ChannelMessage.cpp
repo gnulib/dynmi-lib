@@ -6,8 +6,8 @@
  */
 
 
-#include "ChannelMessage.hpp"
-#include "RedisResult.hpp"
+#include "Dynmi/ChannelMessage.hpp"
+#include "Dynmi/RedisResult.hpp"
 #include <sstream>
 
 using namespace std;

@@ -5,8 +5,8 @@
  *      Author: bhadoria
  */
 
-#include "CdMQMessage.hpp"
-#include "CdMQUtil.hpp"
+#include "Dynmi/CdMQMessage.hpp"
+#include "Dynmi/CdMQUtil.hpp"
 
 CdMQMessage::CdMQMessage(const std::string& data, const std::string& appId, const std::string& tag)
 	: tag(tag), appId(appId), data(data), valid(true){

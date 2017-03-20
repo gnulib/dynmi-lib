@@ -9,14 +9,14 @@
 
 #include <string>
 #include <sstream>
-#include "CdMQUtil.hpp"
-#include "CdMQMessage.hpp"
-#include "InstancesUtil.hpp"
-#include "BroadcastUtil.hpp"
-#include "RedisConnectionTL.hpp"
-#include "RedisConnection.hpp"
-#include "RedisResult.hpp"
-#include "DynmiGlobals.hpp"
+#include "Dynmi/CdMQUtil.hpp"
+#include "Dynmi/CdMQMessage.hpp"
+#include "Dynmi/InstancesUtil.hpp"
+#include "Dynmi/BroadcastUtil.hpp"
+#include "Dynmi/RedisConnectionTL.hpp"
+#include "Dynmi/RedisConnection.hpp"
+#include "Dynmi/RedisResult.hpp"
+#include "Dynmi/DynmiGlobals.hpp"
 
 const static std::string CDMQ = "CDMQ:APP:";
 const static std::string QUEUE = ":QUEUE:";

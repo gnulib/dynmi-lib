@@ -1,70 +1,59 @@
-CC := g++
-ROOT_DIR := .
-BUILD_DIR := Build
-INCLUDE_DIR := Include
-SRC_DIR := Source
-TEST_DIR := Test
-GTEST_DIR := gtest/googletest
-GTEST_LIB := gtest_main.a
-GMOCK_DIR := gtest/googlemock
-GMOCK_LIB := gmock_main.a
-HIREDIS_DIR := hiredis
-HIREDIS_LIB := libhiredis.a
-LIB_DYNMI = libdynmi.a
-SRCS := $(wildcard $(SRC_DIR)/*.cpp)
-# LIBS := $(HIREDIS_DIR)/$(HIREDIS_LIB) $(GTEST_DIR)/make/$(GTEST_LIB)
-LIBS := $(BUILD_DIR)/$(HIREDIS_LIB)
-TESTLIBS := $(BUILD_DIR)/$(HIREDIS_LIB) $(BUILD_DIR)/$(GTEST_LIB) $(BUILD_DIR)/$(GMOCK_LIB)
-TESTS := $(patsubst $(TEST_DIR)/%.cpp, %, $(wildcard $(TEST_DIR)/*Test.cpp))
-CPPS := $(patsubst $(SRC_DIR)/%.cpp, %.cpp, $(SRCS))
-OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
-CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(HIREDIS_DIR)/..
-TEST_CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(GTEST_DIR)/include -I$(GMOCK_DIR)/include -I$(HIREDIS_DIR)/..
-LDFLAGS := -lstdc++ -lpthread -pthread
+TARGETS := Dynmi TestApp
+APPTESTS := $(patsubst %, %Test, $(TARGETS))
+#mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+#ROOT_DIR := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
+export ROOT_DIR := $(shell pwd)
+export BUILD_DIR := $(ROOT_DIR)/Build
+export COMMON_INCLUDE_DIR := $(ROOT_DIR)/Common/Include
+export INCLUDE_DIR := Include
+export SRC_DIR := Source
+export TEST_DIR := Test
+export GTEST_DIR := $(ROOT_DIR)/gtest/googletest
+export GTEST_LIB := gtest_main.a
+export GMOCK_DIR := $(ROOT_DIR)/gtest/googlemock
+export GMOCK_LIB := gmock_main.a
+export HIREDIS_DIR := $(ROOT_DIR)/hiredis
+export HIREDIS_LIB := libhiredis.a
+export LIB_DYNMI = libdynmi.a
+export LIBS_DIR := $(BUILD_DIR)/Libs
+export OBJS_DIR := $(BUILD_DIR)/Objs
+export BINS_DIR := $(BUILD_DIR)/Bins
+export TESTS_DIR := $(BUILD_DIR)/Tests
+export LIBS := $(LIBS_DIR)/$(HIREDIS_LIB)
+export TESTLIBS := $(LIBS_DIR)/$(HIREDIS_LIB) $(LIBS_DIR)/$(GTEST_LIB) $(LIBS_DIR)/$(GMOCK_LIB)
+export CFLAGS := -g -Wall -I$(INCLUDE_DIR) -I$(HIREDIS_DIR)/.. -I$(COMMON_INCLUDE_DIR)
+export TEST_CFLAGS := $(CFLAGS) -I$(GTEST_DIR)/include -I$(GMOCK_DIR)/include
+export LDFLAGS := -lstdc++ -lpthread -pthread
 
-all: $(LIB_DYNMI) $(TESTS) test-app
-
-$(LIB_DYNMI): $(HIREDIS_LIB) $(CPPS)
-	@echo 'Building target: $@'
-	ar -r $(BUILD_DIR)/$@ $(OBJS)
-
-$(CPPS):
-	@echo 'Building target: $@'
-	mkdir -p $(BUILD_DIR)
-	$(CC) -c $(CFLAGS) $(LDFLAGS) -o $(patsubst %.cpp, $(BUILD_DIR)/%.o, $@) $(SRC_DIR)/$@
-
-$(TESTS): $(GTEST_LIB) $(GMOCK_LIB) $(LIB_DYNMI)
-	@echo 'Building test: $@'
-	mkdir -p $(BUILD_DIR)
-	$(CC) $(TEST_CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ $(TEST_DIR)/$@.cpp $(BUILD_DIR)/$(LIB_DYNMI) $(TESTLIBS)
-	cd $(BUILD_DIR) && ./$@
-	rm -f $(BUILD_DIR)/core.*
+all: $(TARGETS)
 
 $(HIREDIS_LIB):
 	@echo 'Building hiredis library'
-	mkdir -p $(BUILD_DIR)
+	mkdir -p $(LIBS_DIR)
 	cd $(HIREDIS_DIR) && $(MAKE)
-	cp -f $(HIREDIS_DIR)/$(HIREDIS_LIB) $(BUILD_DIR)
+	cp -f $(HIREDIS_DIR)/$(HIREDIS_LIB) $(LIBS_DIR)
 
 $(GTEST_LIB): 
 	@echo 'Building googletest'
-	mkdir -p $(BUILD_DIR)
+	mkdir -p $(LIBS_DIR)
 	cd $(GTEST_DIR)/make && $(MAKE)
-	cp -f $(GTEST_DIR)/make/$(GTEST_LIB) $(BUILD_DIR)
+	cp -f $(GTEST_DIR)/make/$(GTEST_LIB) $(LIBS_DIR)
 
 $(GMOCK_LIB): $(GTEST_LIB)
 	@echo 'Building googlemock'
-	mkdir -p $(BUILD_DIR)
+	mkdir -p $(LIBS_DIR)
 	cd $(GMOCK_DIR)/make && $(MAKE)
-	cp -f $(GMOCK_DIR)/make/$(GMOCK_LIB) $(BUILD_DIR)
+	cp -f $(GMOCK_DIR)/make/$(GMOCK_LIB) $(LIBS_DIR)
 
-test: $(LIB_DYNMI) $(TESTS)
+$(TARGETS): $(HIREDIS_LIB) $(GTEST_LIB) $(GMOCK_LIB)
+	@echo 'Building target: $@'
+	cd Projects/$@ && $(MAKE)
 
-cleanlib:
+$(APPTESTS): $(HIREDIS_LIB) $(GTEST_LIB) $(GMOCK_LIB)
+	@echo 'Building test: $@'
+	cd Projects/$(patsubst %Test,%,$@) && $(MAKE) test
 
-test-app: cleanlib $(LIB_DYNMI)
-	@echo 'Building redis-cli'
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$@ Test/TestApp.cpp $(BUILD_DIR)/$(LIB_DYNMI) $(BUILD_DIR)/$(HIREDIS_LIB)
+test: $(APPTESTS)
 
 clean:
 	cd $(GTEST_DIR)/make && $(MAKE) clean

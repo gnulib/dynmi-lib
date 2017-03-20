@@ -6,7 +6,7 @@
  */
 
 #include "gtest/gtest.h"
-#include "ChannelMessage.hpp"
+#include "Dynmi/ChannelMessage.hpp"
 #include "RedisReplyFixtures.hpp"
 
 static const char * TEST_CHANNEL = "test:channel";
