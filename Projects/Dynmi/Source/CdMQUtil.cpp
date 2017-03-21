@@ -135,14 +135,17 @@ std::string makeMarkerCommand(const std::string& qName, const int indx) {
 
 bool CdMQUtil::unlock(CdMQMessage& message) {
 	// release the lock on the session tag held by the message
-	if (message.valid && !message.tag.empty() && InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, message.tag).c_str()) != -1) {
+//	if (message.valid && !message.tag.empty() && InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, message.tag).c_str()) != -1) {
+	if (message.valid) {
+		if (!message.tag.empty()) {
+			InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, message.tag).c_str());
+		}
 		message.valid = false;
 		// we finished processing a message for a channel, so publish a notification about channel being active
 		BroadcastUtil::instance().publish(RedisConnectionTL::instance(), makeChannelName(appId, message.channelName).c_str(), message.channelName.c_str());
 		return true;
 	}
 	return false;
-
 }
 
 bool CdMQUtil::enQueue(const std::string& appId, const std::string qName, const std::string& message, const std::string& tag) {
@@ -183,7 +186,7 @@ CdMQMessage CdMQUtil::deQueue(const std::string qName, int ttl) {
 				//std::cerr << "processing: " << res.arrayResult(i).strResult() << std::endl;
 				CdMQPayload payload = CdMQPayload::fromJson(res.arrayResult(i).strResult());
 				// attempt a lock on current message's session
-				if (payload.isValid() && InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, payload.getTag()).c_str(), ttl) == 0) {
+				if (payload.isValid() && (payload.getTag().empty() || InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, payload.getTag()).c_str(), ttl) == 0)) {
 					//std::cerr << "got session lock for " << payload.getTag() << ", proceeding" << std::endl;
 					// construct CDMQ message object with valid indication
 					message = CdMQMessage(payload.getMessage(), qName, payload.getTag());

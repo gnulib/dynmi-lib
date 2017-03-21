@@ -30,6 +30,7 @@ static const std::string TEST_CHANNEL_NAME = "test:channel";
 static const std::string TEST_MESSAGE = "\"this is a test\"";
 static const std::string TEST_LOCKED_PAYLOAD = "{\"tag\":\"" + TEST_LOCKED_TAG + "\",\"channel\":\"" + TEST_CHANNEL_NAME + "\",\"message\":\"" + "locked message" + "\"}";
 static const std::string TEST_PAYLOAD = "{\"tag\":\"" + TEST_TAG + + "\",\"channel\":\"" + TEST_CHANNEL_NAME + "\",\"message\":\"" + TEST_MESSAGE + "\"}";
+static const std::string TEST_UNTAG_PAYLOAD = "{\"tag\":\"\",\"channel\":\"" + TEST_CHANNEL_NAME + "\",\"message\":\"" + TEST_MESSAGE + "\"}";
 const static std::string CDMQ = "CDMQ:APP:";
 const static std::string CHANNEL_LOCK = ":LOCK:CHANNEL:";
 const static std::string SESSION_LOCK = ":LOCK:SESSION:";
@@ -86,6 +87,37 @@ TEST(CdMQUtilTest, enQueue) {
 	delete mBU;
 }
 
+TEST(CdMQUtilTest, enQueueNoTag) {
+	MockRedisConnection* conn = new MockRedisConnection(NULL,0);
+	RedisConnectionTL::initializeTest(conn);
+	MockInstancesUtil* mIU = new MockInstancesUtil();
+	InstancesUtil::initialize(mIU);
+	MockBroadcastUtil* mBU = new MockBroadcastUtil();
+	BroadcastUtil::initialize(mBU);
+
+	EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
+		.Times(1)
+		.WillOnce(Return(0));
+
+	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+	.Times(1)
+	.WillOnce(Return(1));
+
+	EXPECT_CALL(*conn, cmdArgv(3,_))
+	.Times(1)
+	.WillOnce(Return(getIntegerResult(1)));
+
+	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
+		.Times(1)
+		.WillOnce(Return(0));
+
+	CdMQUtil::initialize(TEST_APP_ID,"",0);
+	CdMQUtil::instance().enQueue(TEST_APP_ID, TEST_CHANNEL_NAME, TEST_MESSAGE);
+	delete conn;
+	delete mIU;
+	delete mBU;
+}
+
 TEST(CdMQUtilTest, deQueue) {
 	MockRedisConnection* conn = new MockRedisConnection(NULL,0);
 	MockInstancesUtil* mIU = new MockInstancesUtil();
@@ -135,6 +167,72 @@ TEST(CdMQUtilTest, deQueue) {
 		EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str())))
 			.Times(1)
 			.WillOnce(Return(0));
+
+		// publish channel active after current message processing finishes
+		EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+		.Times(1)
+		.WillOnce(Return(1));
+	}
+
+
+	// session lock is released only when message goes out of scope
+	{
+		CdMQMessage message = CdMQUtil::instance().deQueue(TEST_CHANNEL_NAME,5);
+		ASSERT_TRUE(message.isValid());
+		ASSERT_STREQ(message.getData().c_str(), TEST_MESSAGE.c_str());
+	}
+	delete conn;
+	delete mIU;
+	delete mBU;
+}
+
+TEST(CdMQUtilTest, deQueueNoTag) {
+	MockRedisConnection* conn = new MockRedisConnection(NULL,0);
+	MockInstancesUtil* mIU = new MockInstancesUtil();
+	RedisConnectionTL::initializeTest(conn);
+	InstancesUtil::initialize(mIU);
+	CdMQUtil::initialize(TEST_APP_ID,"",0);
+	MockBroadcastUtil* mBU = new MockBroadcastUtil();
+	BroadcastUtil::initialize(mBU);
+
+	{
+		InSequence dummy;
+
+		// first we want to acquire lock for channel leader selection (only 1 app instance should get next message)
+		EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
+			.Times(1)
+			.WillOnce(Return(0));
+
+		// then we want to get all current messages in the queue
+		redisReply** values = new redisReply*[1];
+		values[0] = getStringReply(TEST_UNTAG_PAYLOAD.c_str());
+
+		EXPECT_CALL(*conn, cmd(ContainsRegex("LRANGE .*CHANNEL.*")))
+		.Times(1)
+		.WillOnce(Return(getArrayResult(1,values)));
+
+		// we should not attempt getting lock on the session/tag for untagged message
+		EXPECT_CALL(*mIU, getFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StartsWith((CDMQ + TEST_APP_ID + SESSION_LOCK).c_str()), Eq(5)))
+			.Times(0);
+
+		// we mark the message in queue with TOMBSTONE
+		EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
+		.Times(1)
+		.WillOnce(Return(RedisResult()));
+
+		// delete the actual TOMBSTONE
+		EXPECT_CALL(*conn, cmdArgv(4,_))
+		.Times(1)
+		.WillOnce(Return(getIntegerResult(1)));
+
+		// release lock on the channel
+		EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
+			.Times(1)
+			.WillOnce(Return(0));
+
+		// no lock to release when untagged message is out of scope
+		EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StartsWith((CDMQ + TEST_APP_ID + SESSION_LOCK).c_str())))
+			.Times(0);
 
 		// publish channel active after current message processing finishes
 		EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
