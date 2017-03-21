@@ -105,7 +105,6 @@ std::string makeSessionName(const std::string& appId, const std::string& tag) {
 }
 
 const std::string& makeChannelQueueName(const std::string& appId, const std::string& qName) {
-//	return NAMESPACE_PREFIX + ":" + CDMQ + appId + CHANNEL_QUEUE + qName;
 	const static std::string name = NAMESPACE_PREFIX + ":" + CDMQ + appId + CHANNEL_QUEUE;
 	return name;
 }
@@ -160,7 +159,6 @@ bool CdMQUtil::enQueue(const std::string& appId, const std::string qName, const 
 	RedisResult res = RedisConnectionTL::instance().cmdArgv(3, args);
 	if (res.resultType() == INTEGER) {
 		// send a notification about queue getting a message
-//		BroadcastUtil::instance().publish(RedisConnectionTL::instance(), qName.c_str(), CHANNEL_ACTIVE.c_str());
 		//std::cerr << "broadcasting event channel active after successful enqueue" << std::endl;
 		BroadcastUtil::instance().publish(RedisConnectionTL::instance(), makeChannelName(appId, qName).c_str(), qName.c_str());
 		result=true;
