@@ -22,9 +22,10 @@ Above will build `hiredis`, `googletest` and `googlemock` dependencies, and then
 ## Redis CRUD Operations
 Library provides following utilities that take care of boiler plate code when dealing with low level redis operations:
 * `RedisConnection` : a C++ container class to maintain redis conext and connection
+* `RedisConnectionTL` : a thread local pool of RedisConnection instances
 * `RedisResult` : a C++ container class for accessing results of a low level redis operations
 
-Above two are C++ wrappers over the `hiredis` library, and they take care of proper cleanup and pointers handling as and when objects are created/destroyed during execution. Note that `RedisConnection` is not thread safe. Hence an instance of the class needs to be created within the thread execution scope. Also, a reference to thread local instance of this class will need to be provided in all other operations provided by the library. 
+Above classes are C++ wrappers over the `hiredis` library, and they take care of proper cleanup and pointers handling as and when objects are created/destroyed during execution. Note that `RedisConnection` is not thread safe. Hence an instance of the class needs to be created within the thread execution scope. Also, a utility class `RedisConnectionTL` is provided to get reference to preinitialized thread local instance of this class that can be provided as argument in all other operations provided by the library. 
 
 ## Instance Management
 Library implements a singleton utility class `InstancesUtil` that provides following primitives for instance management:
@@ -99,6 +100,26 @@ Library implements a singleton class `BroadcastUtil` that provides following pri
 	static int publish(RedisConnection& conn, const char* channelName, const char* message);
 ```
 
+## Channel Discrete Message Queue
+Library provides a special message queue implementation, that can used for implementing message passing between different instances of the application while maintaining the natural `sequential` order in which messages for each session are delivered for processing. Messages from the queue can be retrieved using synchronously, or a callback can be registered to receive messages asynchronously.
+* insert a message for a named channel with specified tag into the queue  
+```
+	// add a message at the back of the named queue
+	virtual bool enQueue(const std::string& appId, const std::string qName, const std::string& message, const std::string& tag="");
+```
+* synchronously fetch first message with an unlocked tag from front of the queue for a named channel  
+```
+	// get a message from front of the named queue
+	virtual CdMQMessage deQueue(const std::string qName, int ttl);
+```
+* register a callback method for fetching messages as they become available from front of the queue for a named channel  
+```
+	typedef void (*callbackFunc)(const std::string& qName, const CdMQMessage& message);
+
+	// register callback method to process message when available on named queue
+	virtual bool registerReadyCallback(const std::string& appId, const std::string qName, CdMQUtil::callbackFunc);
+```
+
 ## Example application
 An very simple test application is provided that has some basic usage of the primitives described above. Its built along with rest of the library code and executable is under `Build/test-app` after building the repo. It can be used as following:
 * launching application  
@@ -158,4 +179,11 @@ gracefully removed instance from system
 $
 ```
 
-For testing purpose, multiple instances of this application can be executed in parallel, to understand the behavior of certain multi-instance primitives, e.g. lock management, or channel subscription etc.
+* send (and recieve asynchronously) message to a named CdMQ   
+```
+[ID:49] CMD> send ch1 test1
+sending to CdMQ channel [ch1] : test1
+[ID:49] CMD> CdMQ: Channel [SCALABLE_APP:CDMQ:APP:Test-App:QUEUE:CHANNEL:ch1:CHANNEL_ACTIVE], is valid = 1 payload "test1"
+```
+
+For testing purpose, multiple instances of this application can be executed in parallel, to understand the behavior of certain multi-instance primitives, e.g. lock management, channel subscription, CdMQ message passing etc.
