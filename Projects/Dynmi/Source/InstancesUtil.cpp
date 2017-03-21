@@ -17,6 +17,7 @@
 
 InstancesUtil* InstancesUtil::inst = NULL;
 bool InstancesUtil::initialized = false;
+bool InstancesUtil::isTest = false;
 pthread_mutex_t InstancesUtil::mtx = PTHREAD_MUTEX_INITIALIZER;
 
 InstancesUtil::~InstancesUtil() {
@@ -25,20 +26,13 @@ InstancesUtil::~InstancesUtil() {
 
 bool InstancesUtil::initialize(const std::string& redisHost, const int redisPort) {
 	if (!initialized) {
-		InstancesUtil::initialize(new InstancesUtil());
-		RedisConnectionTL::initialize(redisHost, redisPort);
-	}
-	return initialized;
-}
-
-bool InstancesUtil::initialize(InstancesUtil* inst) {
-	if (!initialized) {
 		pthread_mutex_lock(&InstancesUtil::mtx);
 		try {
 			// check once more, after we get lock, in case someone else had already initialized
 			// while we were waiting
 			if (!initialized) {
-				InstancesUtil::inst = inst;
+				InstancesUtil::inst = new InstancesUtil();
+				RedisConnectionTL::initialize(redisHost, redisPort);
 				initialized = true;
 			}
 		} catch (...) {
@@ -48,15 +42,20 @@ bool InstancesUtil::initialize(InstancesUtil* inst) {
 				delete InstancesUtil::inst;
 			InstancesUtil::inst = NULL;
 		}
-		if (!initialized) {
-			delete inst;
-		}
 		pthread_mutex_unlock(&InstancesUtil::mtx);
 	}
 	return initialized;
 }
 
+bool InstancesUtil::initialize(InstancesUtil* mock) {
+	isTest = true;
+	inst = mock;
+	initialized = false;
+	return true;
+}
+
 InstancesUtil& InstancesUtil::instance() {
+	if (InstancesUtil::isTest) return *inst;
 	static InstancesUtil mock = InstancesUtil();
 	if (!initialized) {
 		// return uninitialized instance and hope for best
@@ -124,21 +123,42 @@ std::string channelInstanceDown(const char * appId) {
 }
 
 /**
+ * my own call back handler to marshal notifications before invoking registered callbacks
+ */
+void InstancesUtil::myCallbackFunc(const char* channel, const char* nodeId) {
+	std::set<BroadcastUtil::callbackFunc> callbacks = inst->myCallbacks[channel];
+	std::string appId = channel;
+	size_t end = appId.find(":CHANNELS:INSTANCE_");
+	if (end == std::string::npos) return;
+	size_t start = appId.find(":", NAMESPACE_PREFIX.length());
+	if (start == std::string::npos) return;
+	start++;
+	if (start >= end) return;
+	appId = appId.substr(start, end-start);
+	for (std::set<BroadcastUtil::callbackFunc>::iterator callback = callbacks.begin();
+			callback != callbacks.end(); ++callback) {
+		(*callback)(appId.c_str(), nodeId);
+	}
+}
+
+/**
  * register a callback method to be notified whenever a new instance for this application comes up
  */
 int InstancesUtil::registerInstanceUpCallback(RedisConnection& conn,
-		const char* appId, callbackFunc func) {
+		const char* appId, BroadcastUtil::callbackFunc func) {
 	if (!BroadcastUtil::instance().isInitialized()) return -1;
-	return BroadcastUtil::instance().addSubscription(conn, channelInstanceUp(appId).c_str(), func);
+	inst->myCallbacks[channelInstanceUp(appId)].insert(func);
+	return BroadcastUtil::instance().addSubscription(conn, channelInstanceUp(appId).c_str(), myCallbackFunc);
 }
 
 /**
  * register a callback method to be notified whenever a instance for this application goes down
  */
 int InstancesUtil::registerInstanceDownCallback(RedisConnection& conn,
-		const char* appId, callbackFunc func) {
+		const char* appId, BroadcastUtil::callbackFunc func) {
 	if (!BroadcastUtil::instance().isInitialized()) return -1;
-	return BroadcastUtil::instance().addSubscription(conn, channelInstanceDown(appId).c_str(), func);
+	inst->myCallbacks[channelInstanceDown(appId)].insert(func);
+	return BroadcastUtil::instance().addSubscription(conn, channelInstanceDown(appId).c_str(), myCallbackFunc);
 }
 
 int InstancesUtil::refreshNodeDetails(RedisConnection& conn, const char* appId,

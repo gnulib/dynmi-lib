@@ -11,23 +11,20 @@
 bool RedisConnectionTL::initialized = false;
 bool RedisConnectionTL::inTest = false;
 RedisConnection* RedisConnectionTL::mock = NULL;
-pthread_mutex_t RedisConnectionTL::mtx = pthread_mutex_t();
+pthread_mutex_t RedisConnectionTL::mtx = PTHREAD_MUTEX_INITIALIZER;
 std::map<pthread_t, RedisConnection*> RedisConnectionTL::pool = std::map<pthread_t, RedisConnection*>();
 std::string RedisConnectionTL::redisHost = "";
 int RedisConnectionTL::redisPort = 0;
 
 bool RedisConnectionTL::initializeTest(RedisConnection* mock) {
-	initialized = true;
 	inTest = true;
 	RedisConnectionTL::mock = mock;
 	return true;
 }
 
 bool RedisConnectionTL::initialize(const std::string& redisHost, const int& redisPort) {
+	if (inTest) return true;
 	if (!RedisConnectionTL::initialized) {
-		if (pthread_mutex_init(&RedisConnectionTL::mtx, NULL) != 0) {
-			return false;
-		}
 		pthread_mutex_lock(&RedisConnectionTL::mtx);
 		// check once more after we get lock
 		if (!RedisConnectionTL::initialized) {

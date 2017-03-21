@@ -22,7 +22,6 @@ static std::string COMMAND_DELIM = "\"";
 static std::string ADD_COMMAND = "ADD_CHANNEL ";
 static std::string REMOVE_COMMAND = "REMOVE_CHANNEL ";
 static std::string STOP_COMMAND = "STOP";
-typedef void (*callbackFunc)(const char*);
 
 class BroadcastUtil {
 protected:
@@ -44,7 +43,7 @@ public:
 	static bool initialize(BroadcastUtil* mock);
 
 	// get initialization status
-	bool isInitialized() { return initialized;}
+	virtual bool isInitialized() { return initialized;}
 
 	// stop all subscriptions and worker thread for this channel, used during shutdown
 	static void stopAll(RedisConnection& conn);
@@ -53,13 +52,14 @@ public:
 	static bool isRunning();
 
 	// publish a message to broadcast on named channel
-	int publish(RedisConnection& conn, const char* channelName, const char* message);
+	virtual int publish(RedisConnection& conn, const char* channelName, const char* message);
 
+	typedef void (*callbackFunc)(const char* channel, const char* notification);
 	// subscribe this instance to receive messages published on named channel
-	int addSubscription(RedisConnection& conn, const char* channelName, callbackFunc);
+	virtual int addSubscription(RedisConnection& conn, const char* channelName, BroadcastUtil::callbackFunc);
 
 	// remove subscription of this instance from named channel
-	int removeSubscription(RedisConnection& conn, const char* channelName);
+	virtual int removeSubscription(RedisConnection& conn, const char* channelName);
 
 protected:
 	std::string getControlChannel();
@@ -71,6 +71,7 @@ private:
 private:
 	static BroadcastUtil* inst;
 	static bool initialized;
+	static bool isTest;
 	static pthread_mutex_t mtx;
 	pthread_t* worker;
 	RedisConnection* workerConn;

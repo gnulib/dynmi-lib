@@ -12,6 +12,7 @@
 #include "Dynmi/RedisConnection.hpp"
 #include "Dynmi/DynmiGlobals.hpp"
 #include "RedisReplyFixtures.hpp"
+#include "MockRedisConnection.hpp"
 #include <string>
 #include <ctime>
 
@@ -22,14 +23,6 @@ static const std::string TEST_NODE_ID = "1";
 static const std::string TEST_CHANNEL_NAME = "test:channel";
 static const std::string TEST_BROADCAST = "\"this is a test\"";
 
-class MockRedisConnection : public RedisConnection {
-public:
-	MockRedisConnection(const char* host, int port) : RedisConnection(host, port){};
-	MOCK_METHOD1(cmd, RedisResult(const char *));
-	MOCK_METHOD2(publish, RedisResult(const char *, const char *));
-	MOCK_CONST_METHOD0(isConnected, bool());
-};
-
 RedisResult getByDelay(RedisResult value) {
 	std::cout << "waiting on blocking command...";
 	sleep(1);
@@ -37,7 +30,7 @@ RedisResult getByDelay(RedisResult value) {
 	return value;
 }
 
-void test_call_back(const char* msg) {
+void test_call_back(const char* channel, const char* msg) {
 	std::cout << "##### Received message: " << msg << std::endl;
 }
 

@@ -16,6 +16,9 @@
 #include "Dynmi/RedisResult.hpp"
 #include "Dynmi/InstancesUtil.hpp"
 #include "Dynmi/BroadcastUtil.hpp"
+#include "Dynmi/CdMQUtil.hpp"
+#include "Dynmi/CdMQMessage.hpp"
+#include "Dynmi/RedisConnectionTL.hpp"
 
 using namespace std;
 
@@ -46,7 +49,7 @@ void printResult(const RedisResult& res) {
 string payload;
 bool hasPayload = false;
 
-void myNewInstanceCallback(const char* nodeId) {
+void myNewInstanceCallback(const char* appId, const char* nodeId) {
 	// skip if notification is about this instance
 #if __cplusplus >= 201103L
 	int id = stol(nodeId);
@@ -55,17 +58,22 @@ void myNewInstanceCallback(const char* nodeId) {
 	istringstream(nodeId) >> id;
 #endif
 	if (id == myNodeId) return ;
-	cerr << "NOTIFICATION: new instance [" << nodeId << "] for application started" << endl;
+	cerr << "NOTIFICATION: new instance [" << nodeId << "] for application [" << appId << "] started" << endl;
 }
 
-void myInstanceDownCallback(const char* nodeId) {
-	cerr << "NOTIFICATION: instance [" << nodeId << "] for application stopped" << endl;
+void myInstanceDownCallback(const char* appId, const char* nodeId) {
+	cerr << "NOTIFICATION: instance [" << nodeId << "] for application [" << appId << "] stopped" << endl;
 }
 
-void myCallback(const char* msg) {
-	cerr << "CALL BACK: " << msg << endl;
+void myCallback(const char* channel, const char* msg) {
+	cerr << "CALL BACK [" << channel << "]: " << msg << endl;
 	payload = string(msg);
 //	hasPayload = true;
+}
+
+void myCdMQCallback(const std::string& qName, const CdMQMessage& message) {
+	cerr << "CdMQ: Channel [" << qName << "], is valid = " << message.isValid() << " payload \"" << message.getData() << "\"" << endl;
+	sleep(2);
 }
 
 int main(int argc, char **argv) {
@@ -78,6 +86,7 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 	cout << "connecting to \"" << argv[1] << ":" << argv[2] << "\"" << endl;
+
 
 	RedisConnection conn(argv[1], atoi(argv[2]));
 	if (!conn.isConnected()) {
@@ -104,6 +113,11 @@ int main(int argc, char **argv) {
 		if (InstancesUtil::instance().publishNodeDetails(conn, "Test-App",myNodeId, "localhost", 2039, 60) == -1) {
 			BroadcastUtil::stopAll(conn);
 			cout << "failed to publish instance details" << endl;
+			return -1;
+		}
+		if (!CdMQUtil::initialize("Test-App", argv[1], atoi(argv[2]))) {
+			BroadcastUtil::stopAll(conn);
+			cout << "failed to initialize CdMQUtil" << endl;
 			return -1;
 		}
 	}
@@ -161,6 +175,14 @@ int main(int argc, char **argv) {
 				} else {
 					cout << "Failure in lock operation!!!" << endl;
 				}
+				continue;
+			} else if (strstr(message, "send") == message || strstr(message, "SEND") == message) {
+				string command = string(message);
+				size_t channel = command.find(" ");
+				size_t payload = command.find(" ", channel+1);
+				cout << "sending to CdMQ channel [" << command.substr(channel+1, payload-channel-1) << "] : " << command.substr(payload+1) << endl;
+				CdMQUtil::instance().registerReadyCallback("Test-App", command.substr(channel+1, payload-channel-1), myCdMQCallback);
+				CdMQUtil::instance().enQueue("Test-App", command.substr(channel+1, payload-channel-1), command.substr(payload+1), "TAG1");
 				continue;
 			}
 		}
