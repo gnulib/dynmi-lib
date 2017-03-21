@@ -67,13 +67,13 @@ TEST(CdMQUtilTest, enQueue) {
 		.Times(1)
 		.WillOnce(Return(0));
 
-	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(TEST_CHANNEL_NAME.c_str()), StrEq(CHANNEL_ACTIVE.c_str())))
+	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 	.Times(1)
 	.WillOnce(Return(1));
 
 	EXPECT_CALL(*conn, cmdArgv(3,_))
 	.Times(1)
-	.WillOnce(Return(RedisResult()));
+	.WillOnce(Return(getIntegerResult(1)));
 
 	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
 		.Times(1)
@@ -106,7 +106,8 @@ TEST(CdMQUtilTest, deQueue) {
 		// then we want to get all current messages in the queue
 		redisReply** values = new redisReply*[1];
 		values[0] = getStringReply(TEST_PAYLOAD.c_str());
-		EXPECT_CALL(*conn, cmd(ContainsRegex("LRANGE .*")))
+
+		EXPECT_CALL(*conn, cmd(ContainsRegex("LRANGE .*CHANNEL.*")))
 		.Times(1)
 		.WillOnce(Return(getArrayResult(1,values)));
 
@@ -123,7 +124,7 @@ TEST(CdMQUtilTest, deQueue) {
 		// delete the actual TOMBSTONE
 		EXPECT_CALL(*conn, cmdArgv(4,_))
 		.Times(1)
-		.WillOnce(Return(RedisResult()));
+		.WillOnce(Return(getIntegerResult(1)));
 
 		// release lock on the channel
 		EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
@@ -136,7 +137,7 @@ TEST(CdMQUtilTest, deQueue) {
 			.WillOnce(Return(0));
 
 		// publish channel active after current message processing finishes
-		EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(TEST_CHANNEL_NAME.c_str()), StrEq(CHANNEL_ACTIVE.c_str())))
+		EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 		.Times(1)
 		.WillOnce(Return(1));
 	}
@@ -185,7 +186,7 @@ TEST(CdMQUtilTest, deQueue2nd) {
 
 	EXPECT_CALL(*conn, cmdArgv(4,_))
 	.Times(1)
-	.WillOnce(Return(RedisResult()));
+	.WillOnce(Return(getIntegerResult(1)));
 
 	EXPECT_CALL(*mIU, releaseFastLock(Ref(*conn), StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str())))
 		.Times(1)
@@ -195,7 +196,7 @@ TEST(CdMQUtilTest, deQueue2nd) {
 		.Times(1)
 		.WillOnce(Return(0));
 
-	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(TEST_CHANNEL_NAME.c_str()), StrEq(CHANNEL_ACTIVE.c_str())))
+	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 	.Times(1)
 	.WillOnce(Return(1));
 
@@ -248,7 +249,7 @@ TEST(CdMQUtilTest, deQueueAllLocked) {
 		.Times(1)
 		.WillOnce(Return(0));
 
-	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(TEST_CHANNEL_NAME.c_str()), StrEq(CHANNEL_ACTIVE.c_str())))
+	EXPECT_CALL(*mBU, publish(Ref(*conn), HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 	.Times(0);
 
 	// session lock is released only when message goes out of scope

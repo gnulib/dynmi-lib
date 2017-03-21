@@ -9,6 +9,7 @@
 
 #include <string>
 #include <sstream>
+#include <iostream>
 #include "Dynmi/CdMQUtil.hpp"
 #include "Dynmi/CdMQMessage.hpp"
 #include "Dynmi/InstancesUtil.hpp"
@@ -23,19 +24,18 @@ const static std::string CDMQ = "CDMQ:APP:";
 const static std::string QUEUE = ":QUEUE:";
 const static std::string CHANNEL_QUEUE = QUEUE + "CHANNEL:";
 const static std::string CHANNEL_LOCK = ":LOCK:CHANNEL:";
-const static std::string CHANNEL = ":CHANNEL:";
 const static std::string SESSION_QUEUE = QUEUE + "SESSION:";
 const static std::string SESSION_LOCK = ":LOCK:SESSION:";
 const static std::string SESSION = ":SESSION:";
-const static std::string ENQUEUE_CMD = "RPUSH ";
-const static std::string REM_CMD = "LREM ";
+const static std::string ENQUEUE_CMD = "RPUSH";
+const static std::string REM_CMD = "LREM";
 const static std::string FETCH_CMD = "LINDEX ";
 const static std::string GETALL_CMD = "LRANGE ";
 const static std::string GETALL_INDX = " 0 -1";
 const static std::string MARK_CMD = "LSET ";
-const static std::string TOMBSTONE = "(:= DELETE ME =:)";
+const static std::string TOMBSTONE = "(:=DELETE-ME=:)";
 const static int OP_TTL = 10;
-static const std::string CHANNEL_ACTIVE = "CHANNEL_ACTIVE";
+static const std::string CHANNEL_ACTIVE = ":CHANNEL_ACTIVE";
 
 CdMQUtil* CdMQUtil::inst = NULL;
 bool CdMQUtil::initialized = false;
@@ -97,7 +97,7 @@ std::string makeSessionLockName(const std::string& appId, const std::string& tag
 }
 
 std::string makeChannelName(const std::string& appId, const std::string& qName) {
-	return NAMESPACE_PREFIX + ":" + CDMQ + appId + CHANNEL_QUEUE + qName;
+	return NAMESPACE_PREFIX + ":" + CDMQ + appId + CHANNEL_QUEUE + qName + CHANNEL_ACTIVE;
 }
 
 std::string makeSessionName(const std::string& appId, const std::string& tag) {
@@ -139,7 +139,7 @@ bool CdMQUtil::unlock(CdMQMessage& message) {
 	if (message.valid && !message.tag.empty() && InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, message.tag).c_str()) != -1) {
 		message.valid = false;
 		// we finished processing a message for a channel, so publish a notification about channel being active
-		BroadcastUtil::instance().publish(RedisConnectionTL::instance(), makeChannelName(appId, message.channelName).c_str(), CHANNEL_ACTIVE.c_str());
+		BroadcastUtil::instance().publish(RedisConnectionTL::instance(), makeChannelName(appId, message.channelName).c_str(), message.channelName.c_str());
 		return true;
 	}
 	return false;
@@ -150,16 +150,22 @@ bool CdMQUtil::enQueue(const std::string& appId, const std::string qName, const 
 	bool result = false;
 	// get a lock on the queue
 	if (InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str(), OP_TTL) != 0) {
+		////std::cerr << "did not get channel lock, skipping" << std::endl;
 		return result;
 	}
+	//std::cerr << "got channel lock, proceeding" << std::endl;
 	// add message to the back of the channel queue
 	std::string args[3] = {ENQUEUE_CMD, makeChannelQueueName(appId, qName), CdMQPayload(qName, tag, message).toJson()};
+	//std::cerr << "adding message to channel queue" << std::endl;
 	RedisResult res = RedisConnectionTL::instance().cmdArgv(3, args);
-	if (res.resultType() != FAILED) {
+	if (res.resultType() == INTEGER) {
 		// send a notification about queue getting a message
 //		BroadcastUtil::instance().publish(RedisConnectionTL::instance(), qName.c_str(), CHANNEL_ACTIVE.c_str());
-		BroadcastUtil::instance().publish(RedisConnectionTL::instance(), makeChannelName(appId, qName).c_str(), CHANNEL_ACTIVE.c_str());
+		//std::cerr << "broadcasting event channel active after successful enqueue" << std::endl;
+		BroadcastUtil::instance().publish(RedisConnectionTL::instance(), makeChannelName(appId, qName).c_str(), qName.c_str());
 		result=true;
+	} else {
+		//std::cerr << "Failed to enQueue: " << res.errMsg() << std::endl;
 	}
 	// release lock on the queue
 	InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str());
@@ -170,13 +176,17 @@ CdMQMessage CdMQUtil::deQueue(const std::string qName, int ttl) {
 	CdMQMessage message = CdMQMessage();
 	// get a lock on the queue
 	if (InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeChannelLockName(appId, qName).c_str(), OP_TTL) == 0) {
+		//std::cerr << "got channel lock to deQueue, proceeding" << std::endl;
 		// walk through all sessions in the session queue
-		RedisResult res = RedisConnectionTL::instance().cmd((GETALL_CMD + makeSessionQueueName(appId, qName) + GETALL_INDX).c_str());
+		RedisResult res = RedisConnectionTL::instance().cmd((GETALL_CMD + makeChannelQueueName(appId, qName) + GETALL_INDX).c_str());
 		if (res.resultType() == ARRAY) {
+			//std::cerr << "got total " << res.arraySize() << " entries in queue" << std::endl;
 			for (int i = 0; i < res.arraySize(); i++) {
+				//std::cerr << "processing: " << res.arrayResult(i).strResult() << std::endl;
 				CdMQPayload payload = CdMQPayload::fromJson(res.arrayResult(i).strResult());
 				// attempt a lock on current message's session
-				if (InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, payload.getTag()).c_str(), ttl) == 0) {
+				if (payload.isValid() && InstancesUtil::instance().getFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, payload.getTag()).c_str(), ttl) == 0) {
+					//std::cerr << "got session lock for " << payload.getTag() << ", proceeding" << std::endl;
 					// construct CDMQ message object with valid indication
 					message = CdMQMessage(payload.getMessage(), qName, payload.getTag());
 
@@ -191,9 +201,18 @@ CdMQMessage CdMQUtil::deQueue(const std::string qName, int ttl) {
 					// and if that was the case, then we'll end up deleting that wrong locked item
 					{
 						std::string name = makeChannelQueueName(appId, qName);
-						RedisConnectionTL::instance().cmd(makeMarkerCommand(name, i).c_str());
+						//std::cerr << "marking tombstone: " << makeMarkerCommand(name, i) << std::endl;
+						res = RedisConnectionTL::instance().cmd(makeMarkerCommand(name, i).c_str());
+						if (res.resultType() == ERROR) {
+							//std::cerr << "Failed to mark tombstones: " << res.errMsg() << std::endl;
+						}
 						std::string args[4] = {REM_CMD, name, "0", TOMBSTONE};
-						RedisConnectionTL::instance().cmdArgv(4, args);
+						res = RedisConnectionTL::instance().cmdArgv(4, args);
+						if (res.resultType() == INTEGER) {
+							//std::cerr << "removed total: " << res.intResult() << " tombstones" << std::endl;
+						} else {
+							//std::cerr << "Failed to remove tombstones: " << res.errMsg() << std::endl;
+						}
 					}
 					// we found an unlocked message, break out of the loop
 					break;
@@ -207,29 +226,39 @@ CdMQMessage CdMQUtil::deQueue(const std::string qName, int ttl) {
 	return message;
 }
 
-void CdMQUtil::myCallbackFunc(const char* channel, const char* notification) {
+void CdMQUtil::myCallbackFunc(const char* channel, const char* qName) {
 	// check for notification type
-	if (CHANNEL_ACTIVE == notification) {
+	//std::cerr << "received channel active for " << qName << " on " << channel << std::endl;
+	if (makeChannelName(appId, qName) == channel) {
 		// fetch first unlocked message from the named channel
-		CdMQMessage message = inst->deQueue(channel, OP_TTL);
+		CdMQMessage message = inst->deQueue(qName, OP_TTL);
+		//std::cerr << "CdMQ: got message valid = " << message.isValid() << " payload \"" << message.getData() << "\"" << std::endl;
 
 		// verify if this is a valid message
 		if (!message.isValid()) return;
 
 		// notify callback for the named channel with this message
-		CdMQUtil::callbackFunc callback = inst->myCallbacks[channel];
+		CdMQUtil::callbackFunc callback = inst->myCallbacks[qName];
 		if (callback) {
 			(*callback)(channel, message);
 		}
 	} else {
 		// unknown notification
+		//std::cerr << "unknown notification channel: " << channel << std::endl;
 	}
 }
 
 bool CdMQUtil::registerReadyCallback(const std::string& appId, const std::string qName, CdMQUtil::callbackFunc callback) {
 	// add consumer callback to map
 	inst->myCallbacks[qName] = callback;
+	//std::cerr << "added consumer call back to my map" << std::endl;
 
 	// register my own callback to handle notifications for the named channel queue
-	return BroadcastUtil::instance().addSubscription(RedisConnectionTL::instance(), makeChannelName(appId, qName).c_str(), myCallbackFunc) != -1;
+	if (BroadcastUtil::instance().addSubscription(RedisConnectionTL::instance(), makeChannelName(appId, qName).c_str(), myCallbackFunc) != -1) {
+		//std::cerr << "successfully registered callback with Broadcast util" << std::endl;
+		return true;
+	} else {
+		//std::cerr << "failed to register callback with Broadcast util" << std::endl;
+		return false;
+	}
 }
