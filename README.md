@@ -8,6 +8,7 @@ This library uses redis as an off-the-box distributed mem cache to provide follo
 * distributed mutex and leader selection between instances
 * publishing broadcast messages to channels
 * subscribing for message notifications on channels
+* a message queue for parallel processing of sequential sessions
 
 ## Getting started
 Setup the repo as following:
@@ -100,8 +101,12 @@ Library implements a singleton class `BroadcastUtil` that provides following pri
 	static int publish(RedisConnection& conn, const char* channelName, const char* message);
 ```
 
-## Channel Discrete Message Queue
-Library provides a special message queue implementation, that can used for implementing message passing between different instances of the application while maintaining the natural `sequential` order in which messages for each session are delivered for processing. Messages from the queue can be retrieved using synchronously, or a callback can be registered to receive messages asynchronously.
+## Channel Discrete Message Queue (`CdMQ`)
+Library provides a special message queue implementation, that can be used to implement parallel processing of multiple sessions simultaneously by different instances of the application.
+
+> A session is defined as a series of related messages that need to be handled in the order they are created/recieved
+
+`CdMQ` allows message passing between different instances of the application while maintaining the natural _sequential order_ of the messages for each session as they are delivered for processing. Messages from the queue can be retrieved either by polling in a non blocking synchronous call, or asynchronoushly by registering a callback method.
 * insert a message for a named channel of a specific application with session specific tag into the queue  
 ```
 	// add a message at the back of the named queue
