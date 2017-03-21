@@ -102,7 +102,7 @@ Library implements a singleton class `BroadcastUtil` that provides following pri
 
 ## Channel Discrete Message Queue
 Library provides a special message queue implementation, that can used for implementing message passing between different instances of the application while maintaining the natural `sequential` order in which messages for each session are delivered for processing. Messages from the queue can be retrieved using synchronously, or a callback can be registered to receive messages asynchronously.
-* insert a message for a named channel with specified tag into the queue  
+* insert a message for a named channel of a specific application with session specific tag into the queue  
 ```
 	// add a message at the back of the named queue
 	virtual bool enQueue(const std::string& appId, const std::string qName, const std::string& message, const std::string& tag="");
