@@ -243,7 +243,7 @@ void CdMQUtil::myCallbackFunc(const char* channel, const char* qName) {
 		// notify callback for the named channel with this message
 		CdMQUtil::callbackFunc callback = inst->myCallbacks[qName];
 		if (callback) {
-			(*callback)(channel, message);
+			(*callback)(qName, message);
 		}
 	} else {
 		// unknown notification
