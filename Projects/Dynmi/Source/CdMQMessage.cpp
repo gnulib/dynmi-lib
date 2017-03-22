@@ -18,7 +18,7 @@ CdMQMessage::CdMQMessage()
 
 CdMQMessage::~CdMQMessage() {
 	if (valid) {
-		CdMQUtil::unlock(*this);
+		CdMQUtil::instance().unlock(*this);
 	}
 }
 

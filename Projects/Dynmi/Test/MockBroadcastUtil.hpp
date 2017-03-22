@@ -18,13 +18,13 @@ public:
 	MOCK_METHOD0(isInitialized, bool ());
 
 	// publish a message to broadcast on named channel
-	MOCK_METHOD3(publish, int (RedisConnection& conn, const char* channelName, const char* message));
+	MOCK_METHOD2(publish, int (const char* channelName, const char* message));
 
 	// subscribe this instance to receive messages published on named channel
-	MOCK_METHOD3(addSubscription, int (RedisConnection& conn, const char* channelName, BroadcastUtil::callbackFunc));
+	MOCK_METHOD2(addSubscription, int (const char* channelName, BroadcastUtil::callbackFunc));
 
 	// remove subscription of this instance from named channel
-	MOCK_METHOD2(removeSubscription, int (RedisConnection& conn, const char* channelName));
+	MOCK_METHOD1(removeSubscription, int (const char* channelName));
 };
 
 

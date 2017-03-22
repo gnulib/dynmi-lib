@@ -16,43 +16,43 @@
 class MockInstancesUtil : public InstancesUtil {
 public:
 	// increment and get a counter
-	MOCK_METHOD3(incrCounter, int (RedisConnection& conn, const char* appId, const char* counter));
+	MOCK_METHOD2(incrCounter, int (const char* appId, const char* counter));
 
 	// decrement and get a counter
-	MOCK_METHOD3(decrCounter, int (RedisConnection& conn, const char* appId, const char* counter));
+	MOCK_METHOD2(decrCounter, int (const char* appId, const char* counter));
 
 	// get a new ID for a newly deploying instance of the application
-	MOCK_METHOD2(getNewInstanceId, int (RedisConnection& conn, const char* appId));
+	MOCK_METHOD1(getNewInstanceId, int (const char* appId));
 
 	// register a callback method for any new instance notification
-	MOCK_METHOD3(registerInstanceUpCallback, int (RedisConnection& conn, const char* appId, BroadcastUtil::callbackFunc));
+	MOCK_METHOD2(registerInstanceUpCallback, int (const char* appId, BroadcastUtil::callbackFunc));
 
 	// register a callback method for any instance down notification
-	MOCK_METHOD3(registerInstanceDownCallback, int (RedisConnection& conn, const char* appId, BroadcastUtil::callbackFunc));
+	MOCK_METHOD2(registerInstanceDownCallback, int (const char* appId, BroadcastUtil::callbackFunc));
 
 	// refresh node's address details
-	MOCK_METHOD4(refreshNodeDetails, int (RedisConnection& conn, const char* appId, const int nodeId, int ttl));
+	MOCK_METHOD3(refreshNodeDetails, int (const char* appId, const int nodeId, int ttl));
 
 	// publish a node's address details
-	MOCK_METHOD6(publishNodeDetails, int (RedisConnection& conn, const char* appId,
+	MOCK_METHOD5(publishNodeDetails, int (const char* appId,
 					const int nodeId, const char* host, int port, int ttl));
 
 	// get all active nodes for specified appID
-	MOCK_METHOD2(getAllNodes, std::set<std::string> (RedisConnection& conn, const char* appId));
+	MOCK_METHOD1(getAllNodes, std::set<std::string> (const char* appId));
 
 	// get a node's address details
-	MOCK_METHOD5(getNodeDetails, int (RedisConnection& conn, const char* appId,
+	MOCK_METHOD4(getNodeDetails, int (const char* appId,
 					const int nodeId, std::string& host, int& port));
 
 	// remove a node's details from system
-	MOCK_METHOD3(removeNodeDetails, int (RedisConnection& conn, const char* appId,
+	MOCK_METHOD2(removeNodeDetails, int (const char* appId,
 					const int nodeId));
 
 	// get a fast lock on system
-	MOCK_METHOD4(getFastLock, int(RedisConnection& conn, const char* appId, const char* lockName, int ttl));
+	MOCK_METHOD3(getFastLock, int(const char* appId, const char* lockName, int ttl));
 
 	// release the fast lock
-	MOCK_METHOD3(releaseFastLock, int (RedisConnection& conn, const char* appId, const char* lockName));
+	MOCK_METHOD2(releaseFastLock, int (const char* appId, const char* lockName));
 };
 
 #endif /* PROJECTS_DYNMI_TEST_MOCKINSTANCESUTIL_HPP_ */

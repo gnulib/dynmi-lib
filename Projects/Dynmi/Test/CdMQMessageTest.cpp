@@ -15,6 +15,7 @@
 #include <string>
 #include <map>
 #include "Dynmi/RedisConnection.hpp"
+#include "MockCdMQUtil.hpp"
 
 #include "gtest/gtest.h"
 using namespace ::testing;
@@ -46,6 +47,11 @@ TEST(CdMQMessageTest, testPthreads) {
 
 // test that when instance is created it has the lock
 TEST(CdMQMessageTest, lockAtCreation) {
+	MockCdMQUtil mock;
+	CdMQUtil::initialize(&mock);
+	EXPECT_CALL(mock, unlock(_))
+	.Times(1);
+
 	CdMQMessage* uut = new CdMQMessageUUT(TEST_DATA, TEST_APP_ID, TEST_Q_NAME);
 	ASSERT_TRUE(uut->isValid());
 	delete uut;
@@ -53,6 +59,11 @@ TEST(CdMQMessageTest, lockAtCreation) {
 
 // test data container
 TEST(CdMQMessageTest, dataContainer) {
+	MockCdMQUtil mock;
+	CdMQUtil::initialize(&mock);
+	EXPECT_CALL(mock, unlock(_))
+	.Times(1);
+
 	CdMQMessage* uut = new CdMQMessageUUT(TEST_DATA, TEST_APP_ID, TEST_Q_NAME);
 	ASSERT_STREQ(uut->getData().c_str(), TEST_DATA.c_str());
 	delete uut;
@@ -60,6 +71,11 @@ TEST(CdMQMessageTest, dataContainer) {
 
 // test assignment operator behavior
 TEST(CdMQMessageTest, unlockAfterCopy) {
+	MockCdMQUtil mock;
+	CdMQUtil::initialize(&mock);
+	EXPECT_CALL(mock, unlock(_))
+	.Times(1);
+
 	CdMQMessage* uut = new CdMQMessageUUT(TEST_DATA, TEST_APP_ID, TEST_Q_NAME);
 	CdMQMessage copy = *uut;
 	// original should have lost the lock

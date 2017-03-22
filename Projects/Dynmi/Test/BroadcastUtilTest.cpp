@@ -10,6 +10,7 @@
 #include "Dynmi/BroadcastUtil.hpp"
 #include "Dynmi/RedisResult.hpp"
 #include "Dynmi/RedisConnection.hpp"
+#include "Dynmi/RedisConnectionTL.hpp"
 #include "Dynmi/DynmiGlobals.hpp"
 #include "RedisReplyFixtures.hpp"
 #include "MockRedisConnection.hpp"
@@ -36,41 +37,39 @@ void test_call_back(const char* channel, const char* msg) {
 
 TEST(BroadcastUtilTest, initializationSuccess) {
     // create a mock connection instance for worker thread
-	MockRedisConnection* workerConn = new MockRedisConnection(NULL, 0);
-    // create a mock connection instance for test case use
-	MockRedisConnection myConn(NULL, 0);
-
+	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
+	RedisConnectionTL::initializeTest(conn);
 
 	// capture any call for blocking command
-	EXPECT_CALL(*workerConn, cmd(StrEq("")))
+	EXPECT_CALL(*conn, cmd(StrEq("")))
 		// and wait 1 sec and send empty response
 		.WillRepeatedly(Return(getByDelay(RedisResult())));
 
 	// setup mock to expect command
 	std::string command_1 = std::string("SUBSCRIBE ") + NAMESPACE_PREFIX + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:"+ TEST_NODE_ID;
 	std::string control_channel = std::string(NAMESPACE_PREFIX) + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:" + TEST_NODE_ID;
-	EXPECT_CALL(*workerConn, isConnected())
-		.Times(1)
-		.WillOnce(Return(true));
+	EXPECT_CALL(*conn, isConnected())
+	.WillRepeatedly(Return(true));
 
-	EXPECT_CALL(*workerConn, cmd(StrEq(command_1.c_str())))
+	EXPECT_CALL(*conn, cmd(StrEq(command_1.c_str())))
 		// one time
 		.Times(1)
 		// and return back a blank reply
 		.WillOnce(Return(RedisResult()));
 
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// verify that BroadcastUtil intializes
-	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), workerConn));
+	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str()));
 	ASSERT_TRUE(BroadcastUtil::instance().isRunning());
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
-	BroadcastUtil::stopAll(myConn);
+	BroadcastUtil::stopAll();
+	delete conn;
 }
 
 /**
@@ -79,8 +78,7 @@ TEST(BroadcastUtilTest, initializationSuccess) {
 TEST(BroadcastUtilTest, controlIncorrectChannel) {
     // create a mock connection instance for worker thread
 	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
-    // create a mock connection instance for test case use
-	MockRedisConnection myConn(NULL, 0);
+	RedisConnectionTL::initializeTest(conn);
 
 	// capture any call for blocking command
 	EXPECT_CALL(*conn, cmd(StrEq("")))
@@ -93,8 +91,7 @@ TEST(BroadcastUtilTest, controlIncorrectChannel) {
 	std::string command_2 = std::string("SUBSCRIBE ") + TEST_CHANNEL_NAME;
 
 	EXPECT_CALL(*conn, isConnected())
-	.Times(1)
-	.WillOnce(Return(true));
+	.WillRepeatedly(Return(true));
 
 	EXPECT_CALL(*conn, cmd(StartsWith(command_1.c_str())))
 		// one time
@@ -108,17 +105,18 @@ TEST(BroadcastUtilTest, controlIncorrectChannel) {
 		// should never be called
 		.Times(0);
 
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// initiate worker thread
-	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), conn));
+	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str()));
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
-	BroadcastUtil::stopAll(myConn);
+	BroadcastUtil::stopAll();
+	delete conn;
 }
 
 /**
@@ -127,8 +125,7 @@ TEST(BroadcastUtilTest, controlIncorrectChannel) {
 TEST(BroadcastUtilTest, controlDataMessage) {
     // create a mock connection instance for worker thread
 	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
-    // create a mock connection instance for test case use
-	MockRedisConnection myConn(NULL, 0);
+	RedisConnectionTL::initializeTest(conn);
 
 	// setup mock to expect command
 	std::string control_channel = std::string(NAMESPACE_PREFIX) + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:" + TEST_NODE_ID;
@@ -138,8 +135,7 @@ TEST(BroadcastUtilTest, controlDataMessage) {
 
 	// return connected when asked
 	EXPECT_CALL(*conn, isConnected())
-	.Times(1)
-	.WillOnce(Return(true));
+	.WillRepeatedly(Return(true));
 
 	// return blank result every 1 second when waiting for message
 	EXPECT_CALL(*conn, cmd(StrEq("")))
@@ -160,25 +156,26 @@ TEST(BroadcastUtilTest, controlDataMessage) {
 				(TEST_BROADCAST).c_str()))));
 
 	// mock up handling of control command sent to subscribe to a channel
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq(command_2.c_str())))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq(command_2.c_str())))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// mock to handle stop request
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
 		.Times(1)
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// initiate worker thread
-	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), conn));
+	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str()));
 	// subscribe to test channel
-	ASSERT_EQ(BroadcastUtil::instance().addSubscription(myConn, TEST_CHANNEL_NAME.c_str(), test_call_back), 1);
+	ASSERT_EQ(BroadcastUtil::instance().addSubscription(TEST_CHANNEL_NAME.c_str(), test_call_back), 1);
 
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
-	BroadcastUtil::stopAll(myConn);
+	BroadcastUtil::stopAll();
+	delete conn;
 }
 
 /**
@@ -187,8 +184,7 @@ TEST(BroadcastUtilTest, controlDataMessage) {
 TEST(BroadcastUtilTest, commandPublishMessage) {
     // create a mock connection instance for worker thread
 	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
-    // create a mock connection instance for test case use
-	MockRedisConnection myConn(NULL, 0);
+	RedisConnectionTL::initializeTest(conn);
 
 	// setup mock to expect command
 	std::string control_channel = std::string(NAMESPACE_PREFIX) + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:" + TEST_NODE_ID;
@@ -197,8 +193,7 @@ TEST(BroadcastUtilTest, commandPublishMessage) {
 
 	// return connected when asked
 	EXPECT_CALL(*conn, isConnected())
-	.Times(1)
-	.WillOnce(Return(true));
+	.WillRepeatedly(Return(true));
 
 	// return blank result every 1 second when waiting for message
 	EXPECT_CALL(*conn, cmd(StrEq("")))
@@ -212,27 +207,28 @@ TEST(BroadcastUtilTest, commandPublishMessage) {
 		.WillOnce(Return(getByDelay(RedisResult())));
 
 	// verify that correct command issued to publish message to channel
-	EXPECT_CALL(myConn, publish(StrEq(TEST_CHANNEL_NAME.c_str()), StrEq(TEST_BROADCAST.c_str())))
+	EXPECT_CALL(*conn, publish(StrEq(TEST_CHANNEL_NAME.c_str()), StrEq(TEST_BROADCAST.c_str())))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// handle stop request
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// initiate worker thread
-	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), conn));
+	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str()));
 	// send a test message on our test channel
-	BroadcastUtil::instance().publish(myConn, TEST_CHANNEL_NAME.c_str(), TEST_BROADCAST.c_str());
+	BroadcastUtil::instance().publish(TEST_CHANNEL_NAME.c_str(), TEST_BROADCAST.c_str());
 
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
-	BroadcastUtil::stopAll(myConn);
+	BroadcastUtil::stopAll();
+	delete conn;
 }
 
 /**
@@ -241,8 +237,7 @@ TEST(BroadcastUtilTest, commandPublishMessage) {
 TEST(BroadcastUtilTest, controlAddRemoveSubscription) {
     // create a mock connection instance for worker thread
 	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
-    // create a mock connection instance for test case use
-	MockRedisConnection myConn(NULL, 0);
+	RedisConnectionTL::initializeTest(conn);
 
 	// setup mock to expect command
 	std::string control_channel = std::string(NAMESPACE_PREFIX) + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:" + TEST_NODE_ID;
@@ -252,8 +247,7 @@ TEST(BroadcastUtilTest, controlAddRemoveSubscription) {
 
 	// return connected when asked
 	EXPECT_CALL(*conn, isConnected())
-	.Times(1)
-	.WillOnce(Return(true));
+	.WillRepeatedly(Return(true));
 
 	// return a control command to remove channel subscription once, other times just return blank result
 	EXPECT_CALL(*conn, cmd(StrEq("")))
@@ -288,17 +282,18 @@ TEST(BroadcastUtilTest, controlAddRemoveSubscription) {
 
 
 	// mock handling of request to stop
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// initiate worker thread
-	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), conn));
+	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str()));
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
-	BroadcastUtil::stopAll(myConn);
+	BroadcastUtil::stopAll();
+	delete conn;
 }
 
 /**
@@ -307,8 +302,7 @@ TEST(BroadcastUtilTest, controlAddRemoveSubscription) {
 TEST(BroadcastUtilTest, commandAddRemoveSubscription) {
     // create a mock connection instance for worker thread
 	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
-    // create a mock connection instance for test case use
-	MockRedisConnection myConn(NULL, 0);
+	RedisConnectionTL::initializeTest(conn);
 
 	// setup mock to expect command
 	std::string control_channel = std::string(NAMESPACE_PREFIX) + ":" + TEST_APP_ID + ":CHANNELS:CONTROL:" + TEST_NODE_ID;
@@ -318,8 +312,7 @@ TEST(BroadcastUtilTest, commandAddRemoveSubscription) {
 
 	// return connected when checked
 	EXPECT_CALL(*conn, isConnected())
-	.Times(1)
-	.WillOnce(Return(true));
+	.WillRepeatedly(Return(true));
 
 	// return a blank command every 1 second when blocked on subscription messages
 	EXPECT_CALL(*conn, cmd(StrEq("")))
@@ -333,34 +326,35 @@ TEST(BroadcastUtilTest, commandAddRemoveSubscription) {
 		.WillOnce(Return(getByDelay(RedisResult())));
 
 	// verify that correct control command is sent to subscribe to a channel
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq(command_2.c_str())))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq(command_2.c_str())))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// verify that correct control command is sent to unsubscribe from a channel
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq(command_3.c_str())))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq(command_3.c_str())))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
-	EXPECT_CALL(myConn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
+	EXPECT_CALL(*conn, publish(StrEq(control_channel.c_str()), StrEq("STOP")))
 		// one time
 		.Times(1)
 		// and return back an integer reply
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// initiate worker thread
-	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str(), conn));
+	ASSERT_TRUE(BroadcastUtil::initialize(TEST_APP_ID.c_str(), TEST_NODE_ID.c_str()));
 	// subscribe to test channel
-	ASSERT_EQ(BroadcastUtil::instance().addSubscription(myConn, TEST_CHANNEL_NAME.c_str(), test_call_back), 1);
+	ASSERT_EQ(BroadcastUtil::instance().addSubscription(TEST_CHANNEL_NAME.c_str(), test_call_back), 1);
 	// unsubscribe from test channel
-	ASSERT_EQ(BroadcastUtil::instance().removeSubscription(myConn, TEST_CHANNEL_NAME.c_str()), 1);
+	ASSERT_EQ(BroadcastUtil::instance().removeSubscription(TEST_CHANNEL_NAME.c_str()), 1);
 	// sleep at least one second to make sure worker thread starts execution
 	sleep(1);
-	BroadcastUtil::stopAll(myConn);
+	BroadcastUtil::stopAll();
+	delete conn;
 }
 
 int main(int argc, char **argv) {

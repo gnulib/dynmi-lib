@@ -67,7 +67,8 @@ InstancesUtil& InstancesUtil::instance() {
 /**
  * increment a counter and get value
  */
-int InstancesUtil::incrCounter(RedisConnection& conn, const char* appId, const char* counter) {
+int InstancesUtil::incrCounter(const char* appId, const char* counter) {
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return -1;
 	}
@@ -87,7 +88,8 @@ int InstancesUtil::incrCounter(RedisConnection& conn, const char* appId, const c
 /**
  * decrement a counter and get value
  */
-int InstancesUtil::decrCounter(RedisConnection& conn, const char* appId, const char* counter) {
+int InstancesUtil::decrCounter(const char* appId, const char* counter) {
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return -1;
 	}
@@ -108,8 +110,8 @@ int InstancesUtil::decrCounter(RedisConnection& conn, const char* appId, const c
  * get a new ID for a newly deploying instance of the application
  * (any restart correspond to a new instance)
  */
-int InstancesUtil::getNewInstanceId(RedisConnection& conn, const char* appId) {
-	return InstancesUtil::incrCounter(conn, appId, "NODES");
+int InstancesUtil::getNewInstanceId(const char* appId) {
+	return InstancesUtil::incrCounter(appId, "NODES");
 }
 
 std::string channelInstanceUp(const char * appId) {
@@ -144,25 +146,23 @@ void InstancesUtil::myCallbackFunc(const char* channel, const char* nodeId) {
 /**
  * register a callback method to be notified whenever a new instance for this application comes up
  */
-int InstancesUtil::registerInstanceUpCallback(RedisConnection& conn,
-		const char* appId, BroadcastUtil::callbackFunc func) {
+int InstancesUtil::registerInstanceUpCallback(const char* appId, BroadcastUtil::callbackFunc func) {
 	if (!BroadcastUtil::instance().isInitialized()) return -1;
-	inst->myCallbacks[channelInstanceUp(appId)].insert(func);
-	return BroadcastUtil::instance().addSubscription(conn, channelInstanceUp(appId).c_str(), myCallbackFunc);
+	myCallbacks[channelInstanceUp(appId)].insert(func);
+	return BroadcastUtil::instance().addSubscription(channelInstanceUp(appId).c_str(), myCallbackFunc);
 }
 
 /**
  * register a callback method to be notified whenever a instance for this application goes down
  */
-int InstancesUtil::registerInstanceDownCallback(RedisConnection& conn,
-		const char* appId, BroadcastUtil::callbackFunc func) {
+int InstancesUtil::registerInstanceDownCallback(const char* appId, BroadcastUtil::callbackFunc func) {
 	if (!BroadcastUtil::instance().isInitialized()) return -1;
-	inst->myCallbacks[channelInstanceDown(appId)].insert(func);
-	return BroadcastUtil::instance().addSubscription(conn, channelInstanceDown(appId).c_str(), myCallbackFunc);
+	myCallbacks[channelInstanceDown(appId)].insert(func);
+	return BroadcastUtil::instance().addSubscription(channelInstanceDown(appId).c_str(), myCallbackFunc);
 }
 
-int InstancesUtil::refreshNodeDetails(RedisConnection& conn, const char* appId,
-					const int nodeId, int ttl) {
+int InstancesUtil::refreshNodeDetails(const char* appId, const int nodeId, int ttl) {
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return -1;
 	}
@@ -187,8 +187,9 @@ int InstancesUtil::refreshNodeDetails(RedisConnection& conn, const char* appId,
  * then publish this node's ID to pub/sub channel to announce to all active nodes
  *    <NAMESPACE PREFIX>:<App ID>:CHANNELS:INSTANCES
  */
-int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, const int nodeId,
+int InstancesUtil::publishNodeDetails(const char* appId, const int nodeId,
 									const char* host, int port, int ttl) {
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return -1;
 	}
@@ -243,8 +244,9 @@ int InstancesUtil::publishNodeDetails(RedisConnection& conn, const char* appId, 
 	return res.intResult();
 }
 
-std::set<std::string> InstancesUtil::getAllNodes(RedisConnection& conn, const char* appId){
+std::set<std::string> InstancesUtil::getAllNodes(const char* appId){
 	std::set<std::string> nodes;
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return nodes;
 	}
@@ -261,8 +263,9 @@ std::set<std::string> InstancesUtil::getAllNodes(RedisConnection& conn, const ch
 	return nodes;
 }
 
-int InstancesUtil::getNodeDetails(RedisConnection& conn, const char* appId,
+int InstancesUtil::getNodeDetails(const char* appId,
 					const int nodeId, std::string& host, int& port){
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return -1;
 	}
@@ -295,8 +298,8 @@ int InstancesUtil::getNodeDetails(RedisConnection& conn, const char* appId,
 /**
  * remove a node's entries from system, and broadcast node down
  */
-int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
-					const int nodeId) {
+int InstancesUtil::removeNodeDetails(const char* appId, const int nodeId) {
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return -1;
 	}
@@ -349,7 +352,8 @@ int InstancesUtil::removeNodeDetails(RedisConnection& conn, const char* appId,
  *			4)	otherwise (if return value is same as expired), then instance successfully
  *				acquired the mutex, proceed with operation
  */
-int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const char* lockName, int ttl) {
+int InstancesUtil::getFastLock(const char* appId, const char* lockName, int ttl) {
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return -1;
 	}
@@ -428,7 +432,8 @@ int InstancesUtil::getFastLock(RedisConnection& conn, const char* appId, const c
 	return 0;
 }
 
-int InstancesUtil::releaseFastLock(RedisConnection& conn, const char* appId, const char* lockName) {
+int InstancesUtil::releaseFastLock(const char* appId, const char* lockName) {
+	RedisConnection& conn = RedisConnectionTL::instance();
 	if (!conn.isConnected()) {
 		return -1;
 	}
