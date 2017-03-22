@@ -35,6 +35,9 @@ const static std::string CDMQ = "CDMQ:APP:";
 const static std::string CHANNEL_LOCK = ":LOCK:CHANNEL:";
 const static std::string SESSION_LOCK = ":LOCK:SESSION:";
 static const std::string CHANNEL_ACTIVE = "CHANNEL_ACTIVE";
+static const std::string SESSION = ":SESSION:";
+static const std::string CHANNEL_QUEUE = ":QUEUE:CHANNEL:";
+static const std::string SESSION_ACTIVE = ":SESSION_ACTIVE:";
 
 
 TEST(CdMQUtilTest, initialize) {
@@ -144,9 +147,14 @@ TEST(CdMQUtilTest, deQueue) {
 		.WillOnce(Return(getArrayResult(1,values)));
 
 		// we want to attempt getting lock on the session/tag of the message
-		EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str()), Eq(5)))
+		EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK + TEST_TAG).c_str()), Eq(5)))
 			.Times(1)
 			.WillOnce(Return(0));
+
+		// subscribe for session active notification for the session
+		EXPECT_CALL(*mBU, addSubscription(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), _))
+		.Times(1)
+		.WillOnce(Return(1));
 
 		// we mark the message in queue with TOMBSTONE
 		EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
@@ -164,12 +172,12 @@ TEST(CdMQUtilTest, deQueue) {
 			.WillOnce(Return(0));
 
 		// release session/tag lock once message is out of scope
-		EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str())))
+		EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK + TEST_TAG).c_str())))
 			.Times(1)
 			.WillOnce(Return(0));
 
-		// publish channel active after current message processing finishes
-		EXPECT_CALL(*mBU, publish(HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+		// publish session active after current message processing finishes
+		EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 		.Times(1)
 		.WillOnce(Return(1));
 	}
@@ -212,8 +220,13 @@ TEST(CdMQUtilTest, deQueueNoTag) {
 		.WillOnce(Return(getArrayResult(1,values)));
 
 		// we should not attempt getting lock on the session/tag for untagged message
-		EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StartsWith((CDMQ + TEST_APP_ID + SESSION_LOCK).c_str()), Eq(5)))
+		EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StartsWith((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK).c_str()), Eq(5)))
 			.Times(0);
+
+		// subscribe for session active notification for the session without the tag
+		EXPECT_CALL(*mBU, addSubscription(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE).c_str()), _))
+		.Times(1)
+		.WillOnce(Return(1));
 
 		// we mark the message in queue with TOMBSTONE
 		EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
@@ -231,11 +244,11 @@ TEST(CdMQUtilTest, deQueueNoTag) {
 			.WillOnce(Return(0));
 
 		// no lock to release when untagged message is out of scope
-		EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StartsWith((CDMQ + TEST_APP_ID + SESSION_LOCK).c_str())))
+		EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StartsWith((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK).c_str())))
 			.Times(0);
 
-		// publish channel active after current message processing finishes
-		EXPECT_CALL(*mBU, publish(HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+		// publish session active notification without the tag after current message processing finishes
+		EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 		.Times(1)
 		.WillOnce(Return(1));
 	}
@@ -264,10 +277,10 @@ TEST(CdMQUtilTest, deQueue2nd) {
 	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
 		.Times(1)
 		.WillOnce(Return(0));
-	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_LOCKED_TAG).c_str()), Eq(5)))
+	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK + TEST_LOCKED_TAG).c_str()), Eq(5)))
 		.Times(1)
 		.WillOnce(Return(60));
-	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str()), Eq(5)))
+	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK + TEST_TAG).c_str()), Eq(5)))
 		.Times(1)
 		.WillOnce(Return(0));
 
@@ -278,6 +291,10 @@ TEST(CdMQUtilTest, deQueue2nd) {
 	.Times(1)
 	.WillOnce(Return(getArrayResult(2,values)));
 
+	EXPECT_CALL(*mBU, addSubscription(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), _))
+	.Times(1)
+	.WillOnce(Return(1));
+
 	EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
 	.Times(1)
 	.WillOnce(Return(RedisResult()));
@@ -286,7 +303,7 @@ TEST(CdMQUtilTest, deQueue2nd) {
 	.Times(1)
 	.WillOnce(Return(getIntegerResult(1)));
 
-	EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str())))
+	EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK + TEST_TAG).c_str())))
 		.Times(1)
 		.WillOnce(Return(0));
 
@@ -294,7 +311,8 @@ TEST(CdMQUtilTest, deQueue2nd) {
 		.Times(1)
 		.WillOnce(Return(0));
 
-	EXPECT_CALL(*mBU, publish(HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+	// publish session active after current message processing finishes
+	EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 	.Times(1)
 	.WillOnce(Return(1));
 
@@ -321,10 +339,10 @@ TEST(CdMQUtilTest, deQueueAllLocked) {
 	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str()), Eq(10)))
 		.Times(1)
 		.WillOnce(Return(0));
-	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_LOCKED_TAG).c_str()), Eq(5)))
+	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK + TEST_LOCKED_TAG).c_str()), Eq(5)))
 		.Times(1)
 		.WillOnce(Return(60));
-	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str()), Eq(5)))
+	EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK + TEST_TAG).c_str()), Eq(5)))
 		.Times(1)
 		.WillOnce(Return(60));
 
@@ -335,19 +353,22 @@ TEST(CdMQUtilTest, deQueueAllLocked) {
 	.Times(1)
 	.WillOnce(Return(getArrayResult(2,values)));
 
+	EXPECT_CALL(*mBU, addSubscription(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), _))
+	.Times(0);
+
 	EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
 	.Times(0);
 
 	EXPECT_CALL(*conn, cmdArgv(4,_))
 	.Times(0);
 
-	EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + SESSION_LOCK + TEST_TAG).c_str())))
+	EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK + TEST_TAG).c_str())))
 		.Times(0);
 	EXPECT_CALL(*mIU, releaseFastLock(StrEq(TEST_APP_ID.c_str()), StrEq((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME).c_str())))
 		.Times(1)
 		.WillOnce(Return(0));
 
-	EXPECT_CALL(*mBU, publish(HasSubstr(CHANNEL_ACTIVE.c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+	EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 	.Times(0);
 
 	// session lock is released only when message goes out of scope

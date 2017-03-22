@@ -36,6 +36,7 @@ const static std::string MARK_CMD = "LSET ";
 const static std::string TOMBSTONE = "(:=DELETE-ME=:)";
 const static int OP_TTL = 10;
 static const std::string CHANNEL_ACTIVE = ":CHANNEL_ACTIVE";
+static const std::string SESSION_ACTIVE = ":SESSION_ACTIVE:";
 
 CdMQUtil* CdMQUtil::inst = NULL;
 bool CdMQUtil::initialized = false;
@@ -92,16 +93,18 @@ std::string makeChannelLockName(const std::string& appId, const std::string& qNa
 	return CDMQ + appId + CHANNEL_LOCK + qName;
 }
 
-std::string makeSessionLockName(const std::string& appId, const std::string& tag) {
-	return CDMQ + appId + SESSION_LOCK + tag;
+std::string makeSessionLockName(const std::string& appId, const std::string& qName, const std::string& tag) {
+	return CDMQ + appId + CHANNEL_LOCK + qName + SESSION_LOCK + tag;
 }
 
 std::string makeChannelName(const std::string& appId, const std::string& qName) {
 	return NAMESPACE_PREFIX + ":" + CDMQ + appId + CHANNEL_QUEUE + qName + CHANNEL_ACTIVE;
 }
 
-std::string makeSessionName(const std::string& appId, const std::string& tag) {
-	return CDMQ + appId + SESSION + tag;
+std::string makeSessionName(const std::string& appId, const std::string& qName, const std::string& tag) {
+//	return CDMQ + appId + SESSION + tag;
+//	return NAMESPACE_PREFIX + ":" + CDMQ + appId + SESSION + tag + SESSION_ACTIVE;
+	return NAMESPACE_PREFIX + ":" + CDMQ + appId + CHANNEL_QUEUE + qName + SESSION_ACTIVE + tag;
 }
 
 const std::string& makeChannelQueueName(const std::string& appId, const std::string& qName) {
@@ -135,14 +138,15 @@ std::string makeMarkerCommand(const std::string& qName, const int indx) {
 
 bool CdMQUtil::unlock(CdMQMessage& message) {
 	// release the lock on the session tag held by the message
-//	if (message.valid && !message.tag.empty() && InstancesUtil::instance().releaseFastLock(RedisConnectionTL::instance(), appId.c_str(), makeSessionLockName(appId, message.tag).c_str()) != -1) {
 	if (message.valid) {
 		if (!message.tag.empty()) {
-			InstancesUtil::instance().releaseFastLock(appId.c_str(), makeSessionLockName(appId, message.tag).c_str());
+			InstancesUtil::instance().releaseFastLock(appId.c_str(), makeSessionLockName(appId, message.channelName, message.tag).c_str());
 		}
 		message.valid = false;
-		// we finished processing a message for a channel, so publish a notification about channel being active
-		BroadcastUtil::instance().publish(makeChannelName(appId, message.channelName).c_str(), message.channelName.c_str());
+		// we finished processing a message for a channel, so publish a notification about session being active
+		// TODO: should we only notify the channel that had this message, or all channels?
+		//       I guess depends on whether we are locking only this channel or all channels for this session lock?
+		BroadcastUtil::instance().publish(makeSessionName(appId, message.channelName, message.tag).c_str(), message.channelName.c_str());
 		return true;
 	}
 	return false;
@@ -186,10 +190,16 @@ CdMQMessage CdMQUtil::deQueue(const std::string qName, int ttl) {
 				//std::cerr << "processing: " << res.arrayResult(i).strResult() << std::endl;
 				CdMQPayload payload = CdMQPayload::fromJson(res.arrayResult(i).strResult());
 				// attempt a lock on current message's session
-				if (payload.isValid() && (payload.getTag().empty() || InstancesUtil::instance().getFastLock(appId.c_str(), makeSessionLockName(appId, payload.getTag()).c_str(), ttl) == 0)) {
+				if (payload.isValid() && (payload.getTag().empty() || InstancesUtil::instance().getFastLock(appId.c_str(), makeSessionLockName(appId, qName, payload.getTag()).c_str(), ttl) == 0)) {
 					//std::cerr << "got session lock for " << payload.getTag() << ", proceeding" << std::endl;
 					// construct CDMQ message object with valid indication
 					message = CdMQMessage(payload.getMessage(), qName, payload.getTag());
+					// register my callback for any session active notifications for this session
+					if (BroadcastUtil::instance().addSubscription(makeSessionName(appId, qName, payload.getTag()).c_str(), myCallbackFunc) != -1) {
+						//std::cerr << "successfully registered session active callback with Broadcast util" << std::endl;
+					} else {
+						//std::cerr << "failed to register session active callback with Broadcast util" << std::endl;
+					}
 
 					// RELIABLY remove the tag from session queue and message from channel queue
 					// at the current i'th location as following:
