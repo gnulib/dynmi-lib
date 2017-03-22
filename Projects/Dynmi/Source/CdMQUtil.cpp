@@ -26,7 +26,6 @@ const static std::string CHANNEL_QUEUE = QUEUE + "CHANNEL:";
 const static std::string CHANNEL_LOCK = ":LOCK:CHANNEL:";
 const static std::string SESSION_QUEUE = QUEUE + "SESSION:";
 const static std::string SESSION_LOCK = ":LOCK:SESSION:";
-const static std::string SESSION = ":SESSION:";
 const static std::string ENQUEUE_CMD = "RPUSH";
 const static std::string REM_CMD = "LREM";
 const static std::string FETCH_CMD = "LINDEX ";
