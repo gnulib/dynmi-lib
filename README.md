@@ -33,54 +33,51 @@ Library implements a singleton utility class `InstancesUtil` that provides follo
 * dynamic instance deployment and discovery:  
 ```
 	// get a new ID for a newly deploying instance of the application
-	static int getNewInstanceId(RedisConnection& conn, const char* appId);
+	static int getNewInstanceId(const char* appId);
 
 	// register a callback method for any new instance notification
-	static int registerInstanceUpCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
+	static int registerInstanceUpCallback(const char* appId, void (*func)(const char*));
 
 	// register a callback method for any instance down notification
-	static int registerInstanceDownCallback(RedisConnection& conn, const char* appId, void (*func)(const char*));
+	static int registerInstanceDownCallback(const char* appId, void (*func)(const char*));
 
 	// publish a node's address details
-	static int publishNodeDetails(RedisConnection& conn, const char* appId,
-					const int nodeId, const char* host, int port, int ttl);
+	static int publishNodeDetails(const char* appId, const int nodeId, const char* host, int port, int ttl);
 
 	// remove a node's details from system
-	static int removeNodeDetails(RedisConnection& conn, const char* appId,
-					const int nodeId);
+	static int removeNodeDetails(const char* appId, const int nodeId);
 ```
 
 * distributed synchronization and locking  
 ```
 	// increment and get a counter
-	static int incrCounter(RedisConnection& conn, const char* appId, const char* counter);
+	static int incrCounter(const char* appId, const char* counter);
 
 	// decrement and get a counter
-	static int decrCounter(RedisConnection& conn, const char* appId, const char* counter);
+	static int decrCounter(const char* appId, const char* counter);
 
 	// get a fast lock on system
-	static int getFastLock(RedisConnection& conn, const char* appId, const char* lockName, int ttl);
+	static int getFastLock(const char* appId, const char* lockName, int ttl);
 
 	// release the fast lock
-	static int releaseFastLock(RedisConnection& conn, const char* appId, const char* lockName);
+	static int releaseFastLock(const char* appId, const char* lockName);
 ```
 
 ## Pub/Sub Messaging
 Library implements a singleton class `BroadcastUtil` that provides following primitives for management and usage of message channels among all instances of the application:
 * initialization and launch of background worker thread  
 ```
-	// initialize the library before it can be used. we inject the RedisConnection instance
-	// to be used by background worker thread for testability purpose
-	static bool initialize(const char * appId, const char* uniqueId, RedisConnection * workerConn);
+	// initialize the library before it can be used
+	static bool initialize(const char * appId, const char* uniqueId);
 
 	// another way to initialize the library where instance's node ID is used as uniqueId
-	static bool initializeId(const char * appId, int nodeId, RedisConnection * workerConn);
+	static bool initializeId(const char * appId, int nodeId);
 
 	// get initialization status
 	static bool isInitialized() { return initialized;}
 
 	// stop all subscriptions and worker thread for this channel, used during shutdown
-	static void stopAll(RedisConnection& conn);
+	static void stopAll();
 
 	// check if worker thread is running
 	static bool isRunning();
@@ -89,16 +86,16 @@ Library implements a singleton class `BroadcastUtil` that provides following pri
 * manage subscriptions to message channels  
 ```
 	// subscribe this instance to receive messages published on named channel
-	static int addSubscription(RedisConnection& conn, const char* channelName, callbackFunc);
+	static int addSubscription(const char* channelName, callbackFunc);
 
 	// remove subscription of this instance from named channel
-	static int removeSubscription(RedisConnection& conn, const char* channelName);
+	static int removeSubscription(const char* channelName);
 ```
 
 * broadcast/publish a message to a channel  
 ```
 	// publish a message to broadcast on named channel
-	static int publish(RedisConnection& conn, const char* channelName, const char* message);
+	static int publish(const char* channelName, const char* message);
 ```
 
 ## Channel Discrete Message Queue (`CdMQ`)

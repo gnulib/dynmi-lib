@@ -9,10 +9,12 @@
 #include "gtest/gtest.h"
 #include "Dynmi/InstancesUtil.hpp"
 #include "Dynmi/RedisConnection.hpp"
+#include "Dynmi/RedisConnectionTL.hpp"
 #include "Dynmi/RedisResult.hpp"
 #include "Dynmi/DynmiGlobals.hpp"
 #include "RedisReplyFixtures.hpp"
 #include "MockRedisConnection.hpp"
+#include "MockBroadcastUtil.hpp"
 #include <string>
 #include <ctime>
 
@@ -26,12 +28,13 @@ static const std::string TEST_LOCK_NAME = "test-lock";
 
 TEST(InstancesUtilTest, getNewInstanceIdNonIntegerResultType) {
     // create a mock connection instance
+    // create a mock connection instance for worker thread
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 
 	// setup mock to expect command
 	EXPECT_CALL(conn, isConnected())
-	.Times(1)
-	.WillOnce(Return(true));
+	.WillRepeatedly(Return(true));
 
 	EXPECT_CALL(conn, cmd(_))
 		// one time
@@ -42,12 +45,13 @@ TEST(InstancesUtilTest, getNewInstanceIdNonIntegerResultType) {
 
 	// verify that InstanceUtil returns back instance ID as -1
 	// when redis operation result is of type error
-	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(conn, TEST_APP_ID.c_str()), -1);
+	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(TEST_APP_ID.c_str()), -1);
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdCommandFailure) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 
 	// setup mock to expect command
 	EXPECT_CALL(conn, isConnected())
@@ -63,12 +67,13 @@ TEST(InstancesUtilTest, getNewInstanceIdCommandFailure) {
 
 	// verify that InstanceUtil returns back instance ID as -1
 	// when command execution fails
-	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(conn, TEST_APP_ID.c_str()), -1);
+	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(TEST_APP_ID.c_str()), -1);
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 
 	// setup mock to expect command with following schema
 	// INCR <NAMESPACE PREFIX>:<App ID>:NODES
@@ -84,12 +89,13 @@ TEST(InstancesUtilTest, getNewInstanceIdKeySchema) {
 		.WillOnce(Return(getIntegerResult(1)));
 
 	// invoke the utility with request to reserver instance ID
-	InstancesUtil::instance().getNewInstanceId(conn, TEST_APP_ID.c_str());
+	InstancesUtil::instance().getNewInstanceId(TEST_APP_ID.c_str());
 }
 
 TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 
 	// setup mock to expect command
 	EXPECT_CALL(conn, isConnected())
@@ -104,12 +110,13 @@ TEST(InstancesUtilTest, getNewInstanceIdSuccess) {
 
 	// verify that InstanceUtil returns back instance ID same as
 	// what we initialized our redis response above
-	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(conn, TEST_APP_ID.c_str()), 99);
+	ASSERT_EQ(InstancesUtil::instance().getNewInstanceId(TEST_APP_ID.c_str()), 99);
 }
 
 TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 	std::string command1 = std::string("HMSET ") + NAMESPACE_PREFIX
 							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID
 							+ ":ADDRESS HOST " + TEST_HOST + " PORT " + TEST_PORT;
@@ -142,12 +149,13 @@ TEST(InstancesUtilTest, publishNodeDetailsCommandSequence) {
 	}
 	// call the utility method to publish node's address
 	// and expect 1 node as subscriber
-	ASSERT_EQ(InstancesUtil::instance().publishNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), TEST_HOST.c_str(), std::atoi(TEST_PORT.c_str()), 20), 1);
+	ASSERT_EQ(InstancesUtil::instance().publishNodeDetails(TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), TEST_HOST.c_str(), std::atoi(TEST_PORT.c_str()), 20), 1);
 }
 
 TEST(InstancesUtilTest, refreshNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 	std::string command1 = std::string("EXPIRE ") + NAMESPACE_PREFIX
 							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID + ":ADDRESS 20";
 
@@ -162,12 +170,13 @@ TEST(InstancesUtilTest, refreshNodeDetailsCommandSequence) {
 		.WillOnce(Return(getIntegerResult(20)));
 	}
 	// call the utility method to get a node's address
-	ASSERT_EQ(InstancesUtil::instance().refreshNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), 20), 20);
+	ASSERT_EQ(InstancesUtil::instance().refreshNodeDetails(TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), 20), 20);
 }
 
 TEST(InstancesUtilTest, getAllNodesCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 	std::string command1 = std::string("SMEMBERS ") + NAMESPACE_PREFIX
 							+ ":" + TEST_APP_ID + ":INSTANCES";
 	std::string ids[] = {std::string("1"), std::string("2"), std::string("3")};
@@ -187,7 +196,7 @@ TEST(InstancesUtilTest, getAllNodesCommandSequence) {
 		.WillOnce(Return(getArrayResult(3, values)));
 	}
 	// call the utility method to get all nodes
-	std::set<std::string> nodes = InstancesUtil::instance().getAllNodes(conn, TEST_APP_ID.c_str());
+	std::set<std::string> nodes = InstancesUtil::instance().getAllNodes(TEST_APP_ID.c_str());
 	ASSERT_EQ(nodes.size(), 3);
 	int i=0;
 	for (std::set<std::string>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
@@ -198,6 +207,7 @@ TEST(InstancesUtilTest, getAllNodesCommandSequence) {
 TEST(InstancesUtilTest, getNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 	std::string command1 = std::string("HGETALL ") + NAMESPACE_PREFIX
 							+ ":" + TEST_APP_ID + ":INSTANCE:" + TEST_NODE_ID + ":ADDRESS";
 	redisReply** values = new redisReply*[4];
@@ -219,7 +229,7 @@ TEST(InstancesUtilTest, getNodeDetailsCommandSequence) {
 	// call the utility method to get a node's address
 	std::string host;
 	int port;
-	ASSERT_EQ(InstancesUtil::instance().getNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), host, port), 0);
+	ASSERT_EQ(InstancesUtil::instance().getNodeDetails(TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str()), host, port), 0);
 	ASSERT_STREQ(host.c_str(), TEST_HOST.c_str());
 	ASSERT_EQ(port, std::atoi(TEST_PORT.c_str()));
 }
@@ -227,6 +237,7 @@ TEST(InstancesUtilTest, getNodeDetailsCommandSequence) {
 TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 	// first publish node down to all active instances
 	std::string channelInstanceDown = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_DOWN";
@@ -256,7 +267,57 @@ TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
 	}
 	// call the utility method to publish node's address
 	// and expect 1 node as subscriber
-	ASSERT_EQ(InstancesUtil::instance().removeNodeDetails(conn, TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str())), 0);
+	ASSERT_EQ(InstancesUtil::instance().removeNodeDetails(TEST_APP_ID.c_str(), std::atoi(TEST_NODE_ID.c_str())), 0);
+}
+
+void myCallbackFunc(const char* channel, const char* notification) {
+	// NO OP
+}
+
+TEST(InstancesUtilTest, registerInstanceUpCallback) {
+    // create a mock connection instance
+	MockBroadcastUtil mBU;
+	BroadcastUtil::initialize(&mBU);
+
+	// first publish node down to all active instances
+	std::string channelInstanceUp = std::string(NAMESPACE_PREFIX)
+			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_UP";
+
+	// expect following calls in sequence
+	{
+		InSequence dummy;
+		EXPECT_CALL(mBU, isInitialized())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(mBU, addSubscription(StrEq(channelInstanceUp.c_str()), _))
+		.Times(1)
+		.WillOnce(Return(1));
+	}
+	// call the utility method to register my callback method
+	ASSERT_EQ(InstancesUtil::instance().registerInstanceUpCallback(TEST_APP_ID.c_str(), myCallbackFunc), 1);
+}
+
+TEST(InstancesUtilTest, registerInstanceDownCallback) {
+    // create a mock connection instance
+	MockBroadcastUtil mBU;
+	BroadcastUtil::initialize(&mBU);
+
+	// first publish node down to all active instances
+	std::string channelInstanceUp = std::string(NAMESPACE_PREFIX)
+			+ ":" + TEST_APP_ID + ":CHANNELS:INSTANCE_DOWN";
+
+	// expect following calls in sequence
+	{
+		InSequence dummy;
+		EXPECT_CALL(mBU, isInitialized())
+		.Times(1)
+		.WillOnce(Return(true));
+		EXPECT_CALL(mBU, addSubscription(StrEq(channelInstanceUp.c_str()), _))
+		.Times(1)
+		.WillOnce(Return(1));
+	}
+	// call the utility method to register my callback method
+	ASSERT_EQ(InstancesUtil::instance().registerInstanceDownCallback(TEST_APP_ID.c_str(), myCallbackFunc), 1);
 }
 
 /**
@@ -278,6 +339,7 @@ TEST(InstancesUtilTest, removeNodeDetailsCommandSequence) {
 TEST(InstancesUtilTest, fastLockCommandSequenceStep1Lock) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 
 	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
@@ -305,12 +367,13 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep1Lock) {
 		.WillOnce(Return(getIntegerResult(1)));
 	}
 	// we expect a return value 0/success
-	ASSERT_EQ(InstancesUtil::instance().getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
+	ASSERT_EQ(InstancesUtil::instance().getFastLock(TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
 }
 
 TEST(InstancesUtilTest, fastLockCommandSequenceStep2Busy) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 
 	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
@@ -340,12 +403,13 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep2Busy) {
 		.WillOnce(Return(getStringResult(oldExpiry.c_str())));
 	}
 	// we expect a return value that has remaining time for lock is busy
-	ASSERT_EQ(InstancesUtil::instance().getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
+	ASSERT_EQ(InstancesUtil::instance().getFastLock(TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
 }
 
 TEST(InstancesUtilTest, fastLockCommandSequenceStep3Lost) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 
 	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
@@ -392,12 +456,13 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Lost) {
 		.WillOnce(Return(RedisResult()));
 	}
 	// we expect a return value that has remaining time for lock is busy
-	ASSERT_EQ(InstancesUtil::instance().getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
+	ASSERT_EQ(InstancesUtil::instance().getFastLock(TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), ttl+1);
 }
 
 TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
     // create a mock connection instance
 	MockRedisConnection conn(NULL, 0);
+	RedisConnectionTL::initializeTest(&conn);
 
 	std::string key = std::string(NAMESPACE_PREFIX)
 			+ ":" + TEST_APP_ID + ":LOCKS:" + TEST_LOCK_NAME;
@@ -445,7 +510,7 @@ TEST(InstancesUtilTest, fastLockCommandSequenceStep3Won) {
 		.WillOnce(Return(getIntegerResult(1)));
 }
 	// we expect a return value 0/success
-	ASSERT_EQ(InstancesUtil::instance().getFastLock(conn, TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
+	ASSERT_EQ(InstancesUtil::instance().getFastLock(TEST_APP_ID.c_str(), TEST_LOCK_NAME.c_str(), ttl), 0);
 }
 
 int main(int argc, char **argv) {

@@ -21,7 +21,7 @@ protected:
 	virtual ~CdMQUtil();
 
 	// message will unlock the queue when its discarded
-	static bool unlock(CdMQMessage& message);
+	virtual bool unlock(CdMQMessage& message);
 
 	// my callback method for listening to all session and queue notifications
 	static void myCallbackFunc(const char*, const char*);
