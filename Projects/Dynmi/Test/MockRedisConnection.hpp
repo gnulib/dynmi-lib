@@ -19,6 +19,8 @@ public:
 	MOCK_METHOD2(publish, RedisResult(const char *, const char *));
 	MOCK_METHOD2(cmdArgv, RedisResult(int, const std::string*));
 	MOCK_CONST_METHOD0(isConnected, bool());
+	MOCK_METHOD0(reconnect, bool());
+	MOCK_CONST_METHOD0(clone, RedisConnection ());
 };
 
 #endif /* PROJECTS_DYNMI_TEST_MOCKREDISCONNECTION_HPP_ */

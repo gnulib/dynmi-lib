@@ -223,6 +223,8 @@ CdMQMessage CdMQUtil::deQueue(const std::string qName, int ttl) {
 		// release lock on the queue
 		InstancesUtil::instance().releaseFastLock(appId.c_str(), makeChannelLockName(appId, qName).c_str());
 		// lock on session will be removed when the message goes out of scope
+	} else {
+		//std::cerr << "FAILED to get channel lock to deQueue, skipping" << std::endl;
 	}
 	return message;
 }

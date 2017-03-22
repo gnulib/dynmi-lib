@@ -190,10 +190,12 @@ void* BroadcastUtil::workerThread(void * arg) {
 	}
 	// start by subscribing the control channel
 	std::string nextCommand = SUBSCRIBE + inst->controlChannel;
+	// create a clone of the RedisConnection, since same thread local instance will get used by registered callbacks
+	RedisConnection workerConn = RedisConnectionTL::instance().clone();
+	RedisConnection& conn = RedisConnectionTL::isInTest() ? RedisConnectionTL::instance() : workerConn;
 	while (inst->isRunning()) {
 		// send nextCommand and block for message
-		ChannelMessage message = ChannelMessage::from(
-				RedisConnectionTL::instance().cmd(nextCommand.c_str()));
+		ChannelMessage message = ChannelMessage::from(conn.cmd(nextCommand.c_str()));
 		const std::string& channel = message.getChannelName();
 		const std::string& payload = message.getMessage();
 //		std::cerr << "CH[" << channel << "]:" << payload << ":" << std::endl;

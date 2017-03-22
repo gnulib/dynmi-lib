@@ -24,6 +24,7 @@ public:
 	static RedisConnection& instance();
 	// a UT compatible initialization method
 	static bool initializeTest(RedisConnection* mock);
+	static bool isInTest() {return inTest;}
 
 private:
 	static bool initialized;

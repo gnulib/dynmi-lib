@@ -40,6 +40,10 @@ TEST(BroadcastUtilTest, initializationSuccess) {
 	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
 	RedisConnectionTL::initializeTest(conn);
 
+	// handle worker thread clone
+	EXPECT_CALL(*conn, clone())
+	.WillRepeatedly(Return(*((RedisConnection*)conn)));
+
 	// capture any call for blocking command
 	EXPECT_CALL(*conn, cmd(StrEq("")))
 		// and wait 1 sec and send empty response
@@ -79,6 +83,10 @@ TEST(BroadcastUtilTest, controlIncorrectChannel) {
     // create a mock connection instance for worker thread
 	MockRedisConnection* conn = new MockRedisConnection(NULL, 0);
 	RedisConnectionTL::initializeTest(conn);
+
+	// handle worker thread clone
+	EXPECT_CALL(*conn, clone())
+	.WillRepeatedly(Return(*((RedisConnection*)conn)));
 
 	// capture any call for blocking command
 	EXPECT_CALL(*conn, cmd(StrEq("")))
@@ -132,6 +140,10 @@ TEST(BroadcastUtilTest, controlDataMessage) {
 	std::string command_1 = std::string("SUBSCRIBE ") + control_channel;
 	std::string command_2 = "ADD_CHANNEL " + TEST_CHANNEL_NAME;
 	std::string command_3 = std::string("SUBSCRIBE ") + TEST_CHANNEL_NAME;
+
+	// handle worker thread clone
+	EXPECT_CALL(*conn, clone())
+	.WillRepeatedly(Return(*((RedisConnection*)conn)));
 
 	// return connected when asked
 	EXPECT_CALL(*conn, isConnected())
@@ -191,6 +203,10 @@ TEST(BroadcastUtilTest, commandPublishMessage) {
 	std::string command_1 = std::string("SUBSCRIBE ") + control_channel;
 	std::string command_2 = "ADD_CHANNEL " + TEST_CHANNEL_NAME;
 
+	// handle worker thread clone
+	EXPECT_CALL(*conn, clone())
+	.WillRepeatedly(Return(*((RedisConnection*)conn)));
+
 	// return connected when asked
 	EXPECT_CALL(*conn, isConnected())
 	.WillRepeatedly(Return(true));
@@ -244,6 +260,10 @@ TEST(BroadcastUtilTest, controlAddRemoveSubscription) {
 	std::string command_1 = std::string("SUBSCRIBE ") + control_channel;
 	std::string command_2 = std::string("SUBSCRIBE ") + TEST_CHANNEL_NAME;
 	std::string command_3 = std::string("UNSUBSCRIBE ") + TEST_CHANNEL_NAME;
+
+	// handle worker thread clone
+	EXPECT_CALL(*conn, clone())
+	.WillRepeatedly(Return(*((RedisConnection*)conn)));
 
 	// return connected when asked
 	EXPECT_CALL(*conn, isConnected())
@@ -309,6 +329,10 @@ TEST(BroadcastUtilTest, commandAddRemoveSubscription) {
 	std::string command_1 = std::string("SUBSCRIBE ") + control_channel;
 	std::string command_2 = "ADD_CHANNEL " + TEST_CHANNEL_NAME;
 	std::string command_3 = "REMOVE_CHANNEL " + TEST_CHANNEL_NAME;
+
+	// handle worker thread clone
+	EXPECT_CALL(*conn, clone())
+	.WillRepeatedly(Return(*((RedisConnection*)conn)));
 
 	// return connected when checked
 	EXPECT_CALL(*conn, isConnected())

@@ -39,10 +39,10 @@ public:
 	virtual bool isConnected() const;
 
 	// reconnect connection
-	bool reconnect();
+	virtual bool reconnect();
 
 	// clone a connection (for thread safety)
-	RedisConnection clone() const {return RedisConnection(redisHost.c_str(), redisPort);}
+	virtual RedisConnection clone() const {return RedisConnection(redisHost.c_str(), redisPort);}
 
 protected:
 	// my redis context pointer
