@@ -34,7 +34,7 @@ static const std::string TEST_UNTAG_PAYLOAD = "{\"tag\":\"\",\"channel\":\"" + T
 const static std::string CDMQ = "CDMQ:APP:";
 const static std::string CHANNEL_LOCK = ":LOCK:CHANNEL:";
 const static std::string SESSION_LOCK = ":LOCK:SESSION:";
-static const std::string CHANNEL_ACTIVE = "CHANNEL_ACTIVE";
+static const std::string CHANNEL_ACTIVE = ":CHANNEL_ACTIVE";
 static const std::string SESSION = ":SESSION:";
 static const std::string CHANNEL_QUEUE = ":QUEUE:CHANNEL:";
 static const std::string SESSION_ACTIVE = ":SESSION_ACTIVE:";
@@ -152,9 +152,11 @@ TEST(CdMQUtilTest, deQueue) {
 			.WillOnce(Return(0));
 
 		// subscribe for session active notification for the session
-		EXPECT_CALL(*mBU, addSubscription(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), _))
-		.Times(1)
-		.WillOnce(Return(1));
+		 EXPECT_CALL(*mBU, addSubscription(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), _))
+		.Times(0);
+		// above subscription scheme with session tag will create an affinity for a session to be tied to specific application instances
+		// (if subscription is happening during message handling of a session, then only those instances that win the session lock
+		//  would subscribe to specific session tag, and this will start to create an affinity towards those instances)
 
 		// we mark the message in queue with TOMBSTONE
 		EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
@@ -178,9 +180,17 @@ TEST(CdMQUtilTest, deQueue) {
 
 		// publish session active after current message processing finishes
 		EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+		.Times(0);
+		// above subscription scheme with session tag will create an affinity for a session to be tied to specific application instances
+		// (if subscription is happening during message handling of a session, then only those instances that win the session lock
+		//  would subscribe to specific session tag, and this will start to create an affinity towards those instances)
+
+		// publish channel active after current message processing finishes
+		// we publish to whole channel, instead of just a session, to avoid any session affinity
+		EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + CHANNEL_ACTIVE).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 		.Times(1)
 		.WillOnce(Return(1));
-	}
+}
 
 
 	// session lock is released only when message goes out of scope
@@ -223,11 +233,6 @@ TEST(CdMQUtilTest, deQueueNoTag) {
 		EXPECT_CALL(*mIU, getFastLock(StrEq(TEST_APP_ID.c_str()), StartsWith((CDMQ + TEST_APP_ID + CHANNEL_LOCK + TEST_CHANNEL_NAME + SESSION_LOCK).c_str()), Eq(5)))
 			.Times(0);
 
-		// subscribe for session active notification for the session without the tag
-		EXPECT_CALL(*mBU, addSubscription(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE).c_str()), _))
-		.Times(1)
-		.WillOnce(Return(1));
-
 		// we mark the message in queue with TOMBSTONE
 		EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
 		.Times(1)
@@ -248,7 +253,7 @@ TEST(CdMQUtilTest, deQueueNoTag) {
 			.Times(0);
 
 		// publish session active notification without the tag after current message processing finishes
-		EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+		EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + CHANNEL_ACTIVE).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 		.Times(1)
 		.WillOnce(Return(1));
 	}
@@ -291,10 +296,6 @@ TEST(CdMQUtilTest, deQueue2nd) {
 	.Times(1)
 	.WillOnce(Return(getArrayResult(2,values)));
 
-	EXPECT_CALL(*mBU, addSubscription(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), _))
-	.Times(1)
-	.WillOnce(Return(1));
-
 	EXPECT_CALL(*conn, cmd(StartsWith("LSET")))
 	.Times(1)
 	.WillOnce(Return(RedisResult()));
@@ -312,7 +313,7 @@ TEST(CdMQUtilTest, deQueue2nd) {
 		.WillOnce(Return(0));
 
 	// publish session active after current message processing finishes
-	EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+	EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + CHANNEL_ACTIVE).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 	.Times(1)
 	.WillOnce(Return(1));
 
@@ -368,7 +369,7 @@ TEST(CdMQUtilTest, deQueueAllLocked) {
 		.Times(1)
 		.WillOnce(Return(0));
 
-	EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + SESSION_ACTIVE + TEST_TAG).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
+	EXPECT_CALL(*mBU, publish(HasSubstr((CDMQ + TEST_APP_ID + CHANNEL_QUEUE + TEST_CHANNEL_NAME + CHANNEL_ACTIVE).c_str()), StrEq(TEST_CHANNEL_NAME.c_str())))
 	.Times(0);
 
 	// session lock is released only when message goes out of scope

@@ -145,7 +145,8 @@ bool CdMQUtil::unlock(CdMQMessage& message) {
 		// we finished processing a message for a channel, so publish a notification about session being active
 		// TODO: should we only notify the channel that had this message, or all channels?
 		//       I guess depends on whether we are locking only this channel or all channels for this session lock?
-		BroadcastUtil::instance().publish(makeSessionName(appId, message.channelName, message.tag).c_str(), message.channelName.c_str());
+		// ACTUALLY we publish to whole channel, instead of just a session, to avoid any session affinity
+		BroadcastUtil::instance().publish(makeChannelName(appId, message.channelName).c_str(), message.channelName.c_str());
 		return true;
 	}
 	return false;
@@ -194,11 +195,14 @@ CdMQMessage CdMQUtil::deQueue(const std::string qName, int ttl) {
 					// construct CDMQ message object with valid indication
 					message = CdMQMessage(payload.getMessage(), qName, payload.getTag());
 					// register my callback for any session active notifications for this session
-					if (BroadcastUtil::instance().addSubscription(makeSessionName(appId, qName, payload.getTag()).c_str(), myCallbackFunc) != -1) {
-						//std::cerr << "successfully registered session active callback with Broadcast util" << std::endl;
-					} else {
-						//std::cerr << "failed to register session active callback with Broadcast util" << std::endl;
-					}
+//					if (BroadcastUtil::instance().addSubscription(makeSessionName(appId, qName, payload.getTag()).c_str(), myCallbackFunc) != -1) {
+//						//std::cerr << "successfully registered session active callback with Broadcast util" << std::endl;
+//					} else {
+//						//std::cerr << "failed to register session active callback with Broadcast util" << std::endl;
+//					}
+					// above subscription scheme with session tag will create an affinity for a session to be tied to specific application instances
+					// (if subscription is happening during message handling of a session, then only those instances that win the session lock
+					//  would subscribe to specific session tag, and this will start to create an affinity towards those instances)
 
 					// RELIABLY remove the tag from session queue and message from channel queue
 					// at the current i'th location as following:
