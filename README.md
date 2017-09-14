@@ -1,5 +1,5 @@
 # dynmi-lib
-A C++ library to provide primitives for implementing dynamic multi-instance cloud scale applications.
+A C++ library to provide primitives for implementing distributed multi-instance cloud scale applications.
 
 ## Overview
 This library uses redis as an off-the-box distributed mem cache to provide following functionality:
